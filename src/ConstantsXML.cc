@@ -7,6 +7,7 @@
 //
 // author: Sophie Andrieu
 // 04-2006
+// revision (11/2007): Emmanuel Giguet (handling double for image location)
 // Xerox Research Centre Europe
 //
 //========================================================================
@@ -35,6 +36,16 @@ namespace ConstantsXML
 	const char *TAG_M = "M";
 	const char *TAG_L = "L";
 	const char *TAG_C = "C";
+	
+	const char *TAG_PAR_CONF = "CONFIGURATION";
+	const char *TAG_PAR_TOOL = "TOOL";
+	const char *TAG_PAR_NAME = "NAME";
+	const char *TAG_PAR_VER = "VERSION";
+	const char *TAG_PAR_DESC = "DESCRIPTION";
+	const char *TAG_PAR_PARAM = "PARAM";
+	const char *TAG_PAR_ATTRNAME = "NAME";
+	
+
 	
 	// Tag xi:include
 	const char *XI_URI = "http://www.w3.org/2001/XInclude";
@@ -110,6 +121,8 @@ namespace ConstantsXML
 	const char *YES = "yes";
 	const char *NO = "no";
 	
+
+	
 	// Tag XML for file Outline
 	const char *TAG_TOCITEMS = "TOCITEMS";
 	const char *TAG_TOCITEMLIST = "TOCITEMLIST";
@@ -133,12 +146,15 @@ namespace ConstantsXML
 	const char *TAG_QUADPOINTS = "QUADPOINTS";
 	const char *TAG_QUADRILATERAL = "QUADRILATERAL";
 	const char *TAG_POINT = "POINT";
-		
+
 	// Attributs for annotations file
 	const char *ATTR_SUBTYPE = "subtype";
 	const char *ATTR_PAGENUM = "pagenum";
 	const char *ATTR_AUTHOR = "author";
 	const char *ATTR_OPEN = "open";
 	
+	// Attributs for number format
+	const char *ATTR_NUMFORMAT = "%g";
+	const char *ATTR_SID = "sid";
 }
 

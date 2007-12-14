@@ -3,6 +3,9 @@
 // XmlOutputDev.cc (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)
 // author: Hervé Déjean, Sophie Andrieu
 // 04-2006
+// revision (2007/11/15): Emmanuel Giguet (handling double for image location)
+// revision (2007/11/27): Emmanuel Giguet (handling double for text location)
+// revision (2007/11/29): Emmanuel Giguet (adding a serial object id in the pdf stream)
 // Xerox Research Centre Europe
 //
 //=================================================================================
@@ -137,7 +140,7 @@ GBool TextFontInfo::matches(GfxState *state) {
 // ImageInline
 //------------------------------------------------------------------------
 
-ImageInline::ImageInline(int xPosition, int yPosition, int width, int height, int idWord, int idImage, GString* href) {
+ImageInline::ImageInline(double xPosition, double yPosition, double width, double height, int idWord, int idImage, GString* href, int index) {
 	xPositionImage = xPosition;
 	yPositionImage = yPosition;
 	widthImage = width;
@@ -145,7 +148,7 @@ ImageInline::ImageInline(int xPosition, int yPosition, int width, int height, in
 	idWordBefore = idWord;
   	idImageCurrent = idImage;
   	hrefImage = href;
-	
+	idx = index;
 }
 
 ImageInline::~ImageInline() {
@@ -157,7 +160,7 @@ ImageInline::~ImageInline() {
 //------------------------------------------------------------------------
 
 TextWord::TextWord(GfxState *state, int rotA, int angleDegre, int angleSkewingY, int angleSkewingX, double x0, double y0,
-		   int charPosA, TextFontInfo *fontA, double fontSizeA, int idCurrentWord) {
+		   int charPosA, TextFontInfo *fontA, double fontSizeA, int idCurrentWord, int index) {
   GfxFont *gfxFont;
   double x, y, ascent, descent;
 
@@ -173,7 +176,8 @@ TextWord::TextWord(GfxState *state, int rotA, int angleDegre, int angleSkewingY,
   angleSkewing_Y = angleSkewingY;
   angleSkewing_X = angleSkewingX;
   idWord = idCurrentWord;
-  
+  idx = index;
+
   base = 0;
   baseYmin = 0;
   fontName = NULL;
@@ -493,7 +497,8 @@ TextPage::TextPage(GBool verboseA, xmlNodePtr node, GString* dir, GString *base,
   endZoneClip = 0;
   idClip = 0;
   idClipBefore = 0;
-  
+  idx = 0; //EG
+
   if (nsURIA){
   	namespaceURI = new GString(nsURIA);
   }else{
@@ -521,7 +526,6 @@ TextPage::~TextPage() {
 }
 
 void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
-
   	clear();
   	char *tmp;
   	cutter = cut;
@@ -882,7 +886,10 @@ void TextPage::beginWord(GfxState *state, double x0, double y0) {
   		}
   	}
 
-  	curWord = new TextWord(state, rot, angle, angleSkewingY, angleSkewingX, x0, y0, charPos, curFont, curFontSize, getIdWORD());
+    // Increment the absolute object index
+    idx++;
+
+  	curWord = new TextWord(state, rot, angle, angleSkewingY, angleSkewingX, x0, y0, charPos, curFont, curFontSize, getIdWORD(), getIdx());
 }
 
 void TextPage::addChar(GfxState *state, double x, double y,
@@ -1101,19 +1108,18 @@ void TextPage::addAttributsNodeVerbose(xmlNodePtr node, char* tmp, TextWord *wor
 	  		xmlNewProp(node,(const xmlChar*)ATTR_ANGLE_SKEWING_Y,(const xmlChar*)tmp);
 	  		sprintf(tmp,"%d",word->angleSkewing_X);
 	  		xmlNewProp(node,(const xmlChar*)ATTR_ANGLE_SKEWING_X,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->leading);
+        	sprintf(tmp,"%g",word->leading);
         	xmlNewProp(node,(const xmlChar*)ATTR_LEADING,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->render);
+        	sprintf(tmp,"%g",word->render);
         	xmlNewProp(node,(const xmlChar*)ATTR_RENDER,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->rise);
+        	sprintf(tmp,"%g",word->rise);
         	xmlNewProp(node,(const xmlChar*)ATTR_RISE,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->horizScaling);
+        	sprintf(tmp,"%g",word->horizScaling);
         	xmlNewProp(node,(const xmlChar*)ATTR_HORIZ_SCALING,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->wordSpace);
+        	sprintf(tmp,"%g",word->wordSpace);
         	xmlNewProp(node,(const xmlChar*)ATTR_WORD_SPACE,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->charSpace);
+        	sprintf(tmp,"%g",word->charSpace);
         	xmlNewProp(node,(const xmlChar*)ATTR_CHAR_SPACE,(const xmlChar*)tmp);
-        	sprintf(tmp,"%.2f",word->base);
         	xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
 }
 
@@ -1137,7 +1143,7 @@ void TextPage::addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, doub
       	if (word->isItalic()) xmlNewProp(node,(const xmlChar*)ATTR_ITALIC,(const xmlChar*)YES);
       	else xmlNewProp(node,(const xmlChar*)ATTR_ITALIC,(const xmlChar*)NO);
       	
-      	sprintf(tmp,"%.0f",word->fontSize);
+      	sprintf(tmp,"%g",word->fontSize);
       	xmlNewProp(node,(const xmlChar*)ATTR_FONT_SIZE,(const xmlChar*)tmp);
       
       	xmlNewProp(node,(const xmlChar*)ATTR_FONT_COLOR,(const xmlChar*)word->colortoString()->getCString());
@@ -1148,19 +1154,22 @@ void TextPage::addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, doub
       	sprintf(tmp,"%d",word->angle);
 	  	xmlNewProp(node,(const xmlChar*)ATTR_ANGLE,(const xmlChar*)tmp);
 
-      	sprintf(tmp,"%.0f",word->xMin);
+        sprintf(tmp,"%g",word->base);
+        xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
+
+      	sprintf(tmp,ATTR_NUMFORMAT,word->xMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
 
-      	sprintf(tmp,"%.0f",word->yMin);
+      	sprintf(tmp,ATTR_NUMFORMAT,word->yMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
 
-      	sprintf(tmp,"%.0f",word->xMax - word->xMin);
+      	sprintf(tmp,ATTR_NUMFORMAT,word->xMax - word->xMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
       	if (word->xMax > xMaxi) {xMaxi = word->xMax;}
       	if (word->xMin < xMinRot) {xMinRot = word->xMin;}	
       	if (word->xMax > xMaxRot) {xMaxRot = word->xMax;}	
 
-      	sprintf(tmp,"%.0f",word->yMax - word->yMin);
+      	sprintf(tmp,ATTR_NUMFORMAT,word->yMax - word->yMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
       	if (word->yMax > yMaxi) {yMaxi = word->yMax;}	
       	if (word->yMin < yMinRot) {yMinRot = word->yMin;}	
@@ -1255,9 +1264,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				yMinRot = word->yMin;
 				xMaxRot = word->xMax;
 				xMinRot = word->xMin;
-				sprintf(tmp,"%.0f",word->xMin);
+				sprintf(tmp,ATTR_NUMFORMAT,word->xMin);
 				xmlNewProp(nodeline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-				sprintf(tmp,"%.0f",word->yMin);
+				sprintf(tmp,ATTR_NUMFORMAT,word->yMin);
 				xmlNewProp(nodeline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);	
 				lineX = word->xMin;
 				lineYmin = word->yMin;
@@ -1266,7 +1275,13 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
      		}
       	
       	node = xmlNewNode(NULL,(const xmlChar*)TAG_TOKEN);
+
       	node->type = XML_ELEMENT_NODE;   	
+
+      	id = new GString("p");
+  	xmlNewProp(node,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, word->getIdx(), id)->getCString());
+      	delete id;
+
       	id = new GString("p");
       	xmlNewProp(node,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
       	delete id;
@@ -1363,20 +1378,23 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 	  		if (indiceImage != -1){
 	  			int nb = listeImageInline.size();
 	  			for (; indiceImage<nb ; indiceImage++){
-	  				if (idWORDBefore == listeImageInline[indiceImage]->idWordBefore){
-	  					nodeImageInline = xmlNewNode(NULL,(const xmlChar*)TAG_TOKEN);
-    					nodeImageInline->type = XML_ELEMENT_NODE;
-    					id = new GString("p");
-      					xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
-      					delete id;
-						numToken = numToken + 1;				
-    					sprintf(tmp,"%d",listeImageInline[indiceImage]->getXPositionImage());
+				  if (idWORDBefore == listeImageInline[indiceImage]->idWordBefore){
+				    nodeImageInline = xmlNewNode(NULL,(const xmlChar*)TAG_TOKEN);
+				    nodeImageInline->type = XML_ELEMENT_NODE;
+				    id = new GString("p");
+				    xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
+				    delete id;
+				    numToken = numToken + 1;				
+				    id = new GString("p");
+				    xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, listeImageInline[indiceImage]->getIdx(), id)->getCString());
+				    delete id;
+						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getXPositionImage());
 						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-						sprintf(tmp,"%d",listeImageInline[indiceImage]->getYPositionImage());
+						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getYPositionImage());
 						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-						sprintf(tmp,"%d",listeImageInline[indiceImage]->getWidthImage());
+						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getWidthImage());
 						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-						sprintf(tmp,"%d",listeImageInline[indiceImage]->getHeightImage());
+						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getHeightImage());
 						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HREF,(const xmlChar*)listeImageInline[indiceImage]->getHrefImage()->getCString());
     					xmlAddChild(nodeline,nodeImageInline);
@@ -1412,26 +1430,26 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				double arr;
 				if (word->rot==2){
 		  			arr = fabs(ceil(xMaxRot-xMinRot));
-		  			sprintf(tmp,"%.0f",arr);
+		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
 		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);			
 					lineWidth = arr;
 				}else{
 					arr = ceil(xMax-xMin);
-		  			sprintf(tmp,"%.0f",arr);
+		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
 		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);			
 					lineWidth = arr;
 				}
 				
 				if (word->rot==0||word->rot==2){
 		  			arr = ceil(yMax-yMin);
-		  			sprintf(tmp,"%.0f",arr);
+		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
 		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 					lineHeight = arr;
 				}
 				
 				if (word->rot==1||word->rot==3){
 					arr = ceil(yMaxRot-yMinRot);
-		  			sprintf(tmp,"%.0f",arr);
+		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
 		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 					lineHeight = arr;
 				}
@@ -1478,27 +1496,27 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
     		double arr;
 			if (word->rot==2){
     			arr = fabs(ceil(xMaxRot-xMinRot));
-    			sprintf(tmp,"%.0f",arr);
+    			sprintf(tmp,ATTR_NUMFORMAT,arr);
 				xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
 				lineWidth = arr;
 			}
 			else{
 				arr = ceil(xMax-xMin);
-    			sprintf(tmp,"%.0f",arr);
+    			sprintf(tmp,ATTR_NUMFORMAT,arr);
 				xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
 				lineWidth = arr;
 			}
 			
 			if (word->rot==0||word->rot==2){
 				arr = ceil(yMax-yMin);
-				sprintf(tmp,"%.0f",arr);
+				sprintf(tmp,ATTR_NUMFORMAT,arr);
 				xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 				lineHeight = arr;
 			}
 			
 			if (word->rot==1||word->rot==3){
 				arr = ceil(yMaxRot-yMinRot);
-		  		sprintf(tmp,"%.0f",arr);
+		  		sprintf(tmp,ATTR_NUMFORMAT,arr);
 		  		xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 				lineHeight = arr;
 			}
@@ -1544,8 +1562,7 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
       			if (word->next){
       				if ( word->next->xMin > (lineX + lineWidth) + (maxColSpacing * lineFontSize)){
     	  				newBlock = gTrue; 				
-      				} 
-      			}
+      				}       			}
     			xmlAddChild(nodeblocks,nodeline);      			
       		} 
       		else { 
@@ -1610,13 +1627,16 @@ void TextPage::addImageInlineNode(xmlNodePtr nodeline, xmlNodePtr nodeImageInlin
       			xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
       			delete id;
 				numToken = numToken + 1;
-    			sprintf(tmp,"%d",listeImageInline[i]->getXPositionImage());
+    			id = new GString("p");
+      			xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, listeImageInline[i]->getIdx(), id)->getCString());
+      			delete id;
+				sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[i]->getXPositionImage());
 				xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-				sprintf(tmp,"%d",listeImageInline[i]->getYPositionImage());
+				sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[i]->getYPositionImage());
 				xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-				sprintf(tmp,"%d",listeImageInline[i]->getWidthImage());
+				sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[i]->getWidthImage());
 				xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-				sprintf(tmp,"%d",listeImageInline[i]->getHeightImage());
+				sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[i]->getHeightImage());
 				xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 				xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HREF,(const xmlChar*)listeImageInline[i]->getHrefImage()->getCString());
     			xmlAddChild(nodeline,nodeImageInline);
@@ -1634,13 +1654,16 @@ void TextPage::addImageInlineNode(xmlNodePtr nodeline, xmlNodePtr nodeImageInlin
       						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
       						delete id;
 							numToken = numToken + 1;
-    						sprintf(tmp,"%d",listeImageInline[j]->getXPositionImage());
+    						id = new GString("p");
+      						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, listeImageInline[j]->getIdx(), id)->getCString());
+      						delete id;
+							sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[j]->getXPositionImage());
 							xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-							sprintf(tmp,"%d",listeImageInline[j]->getYPositionImage());
+							sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[j]->getYPositionImage());
 							xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-							sprintf(tmp,"%d",listeImageInline[j]->getWidthImage());
+							sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[j]->getWidthImage());
 							xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-							sprintf(tmp,"%d",listeImageInline[j]->getHeightImage());
+							sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[j]->getHeightImage());
 							xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
 							xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HREF,(const xmlChar*)listeImageInline[j]->getHrefImage()->getCString());
 	   						xmlAddChild(nodeline,nodeImageInline);
@@ -1671,6 +1694,16 @@ GString* TextPage::buildIdImage(int pageNum, int imageNum, GString *id){
 	return id;
 }
 
+GString* TextPage::buildSID(int pageNum, int sid, GString *id){
+	char* tmp=(char*)malloc(10*sizeof(char));
+	sprintf(tmp,"%d",pageNum);
+	id->append(tmp);
+	id->append("_s");
+	sprintf(tmp,"%d",sid);
+	id->append(tmp);
+	free(tmp);
+	return id;
+}
 GString* TextPage::buildIdText(int pageNum, int textNum, GString *id){
 	char* tmp=(char*)malloc(10*sizeof(char));
 	sprintf(tmp,"%d",pageNum);
@@ -1815,12 +1848,20 @@ void TextPage::doPathForClip(GfxPath *path, GfxState *state, xmlNodePtr currentN
   	char * tmp; 
   	tmp = (char*)malloc(500*sizeof(char));
   
+	// Increment the absolute object index
+	idx++;
+
   	xmlNodePtr groupNode = NULL;
   
   	// GROUP tag
   	groupNode = xmlNewNode(NULL,(const xmlChar*)TAG_GROUP);
   	xmlAddChild(currentNode, groupNode);
   
+	GString *id;
+	id = new GString("p");
+	xmlNewProp(groupNode,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
+
   	createPath(path, state, groupNode);
     free(tmp);
 }
@@ -1829,11 +1870,19 @@ void TextPage::doPath(GfxPath *path, GfxState *state, GString* gattributes) {
   	char *tmp; 
   	tmp = (char*)malloc(500*sizeof(char));
   
+	// Increment the absolute object index
+	idx++;
+
   	xmlNodePtr groupNode = NULL;
   
   	// GROUP tag
   	groupNode = xmlNewNode(NULL,(const xmlChar*)TAG_GROUP);
   	xmlAddChild(vecroot, groupNode);
+
+	GString *id;
+	id = new GString("p");
+	xmlNewProp(groupNode,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
 
   	xmlNewProp(groupNode,(const xmlChar*)ATTR_STYLE,(const xmlChar*)gattributes->getCString());
 
@@ -1958,9 +2007,17 @@ void TextPage::clip(GfxState *state) {
   	double xMax = 0;
   	double yMax = 0;
  
+	// Increment the absolute object index
+	idx++;
+
  	// CLIP tag
   	gnode = xmlNewNode(NULL,(const xmlChar*)TAG_CLIP);
   	xmlAddChild(vecroot,gnode);
+
+	GString *id;
+	id = new GString("p");
+	xmlNewProp(gnode,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
 
    	// Get the clipping box 
    	state->getClipBBox(&xMin,&yMin,&xMax,&yMax);
@@ -1973,7 +2030,6 @@ void TextPage::clip(GfxState *state) {
    	sprintf(tmp,"%g",yMax-yMin);
    	xmlNewProp(gnode,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
    	
-   	GString *id; 
    	id = new GString("p");
    	xmlNewProp(gnode,(const xmlChar*)ATTR_IDCLIPZONE,(const xmlChar*)buildIdClipZone(num, idClip, id)->getCString());
    	delete id;
@@ -1991,9 +2047,17 @@ void TextPage::eoClip(GfxState *state) {
   	double xMax = 0;
   	double yMax = 0;
   
+	// Increment the absolute object index
+	idx++;
+
   	// CLIP tag
   	gnode=xmlNewNode(NULL,(const xmlChar*)TAG_CLIP);
   	xmlAddChild(vecroot,gnode);
+
+	GString *id;
+	id = new GString("p");
+	xmlNewProp(gnode,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
 
    	// Get the clipping box 
    	state->getClipBBox(&xMin,&yMin,&xMax,&yMax);
@@ -2006,7 +2070,6 @@ void TextPage::eoClip(GfxState *state) {
    	sprintf(tmp,"%g",yMax-yMin);
    	xmlNewProp(gnode,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
    	
-   	GString *id;
    	id = new GString("p");
    	xmlNewProp(gnode,(const xmlChar*)ATTR_IDCLIPZONE,(const xmlChar*)buildIdClipZone(num, idClip, id)->getCString());
    	delete id;
@@ -2026,30 +2089,33 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
   int c;
   int size;
   
-  int x0, y0;				// top left corner of image
-  int w0, h0, w1, h1;		// size of image
+  double x0, y0;				// top left corner of image
+  double w0, h0, w1, h1;		// size of image
   double xt, yt, wt, ht;
   GBool rotate, xFlip, yFlip;
   char tmp[10];
   
   xmlNodePtr node = NULL;
  
+  // Increment the absolute object index
+  idx++;
+
   // get image position and size
   state->transform(0, 0, &xt, &yt);
   state->transformDelta(1, 1, &wt, &ht);
   if (wt > 0) {
-    x0 = xoutRound(xt);
-    w0 = xoutRound(wt);
+    x0 = xt;
+    w0 = wt;
   } else {
-    x0 = xoutRound(xt + wt);
-    w0 = xoutRound(-wt);
+    x0 = xt + wt;
+    w0 = -wt;
   }
   if (ht > 0) {
-    y0 = xoutRound(yt);
-    h0 = xoutRound(ht);
+    y0 = yt;
+    h0 = ht;
   } else {
-    y0 = xoutRound(yt + ht);
-    h0 = xoutRound(-ht);
+    y0 = yt + ht;
+    h0 = -ht;
   }
   state->transformDelta(1, 0, &xt, &yt);
   rotate = fabs(xt) < fabs(yt);
@@ -2120,13 +2186,18 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
     xmlNewProp(node,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdImage(num, numImage, id)->getCString());
     delete id;
 	numImage = numImage + 1;  	
-  	sprintf(tmp,"%d",x0);
+
+	id = new GString("p");
+	xmlNewProp(node,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
+
+	sprintf(tmp,ATTR_NUMFORMAT,x0);
   	xmlNewProp(node,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",y0);
+  	sprintf(tmp,ATTR_NUMFORMAT,y0);
   	xmlNewProp(node,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",w0);
+  	sprintf(tmp,ATTR_NUMFORMAT,w0);
   	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",h0);
+  	sprintf(tmp,ATTR_NUMFORMAT,h0);
   	xmlNewProp(node,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
   	sprintf(tmp,"%d",inlineImg);
   	xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)tmp);
@@ -2136,10 +2207,8 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
   }
   
   if (inlineImg && !parameters->getImageInline()){
-  	listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname));
+  	listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname, getIdx()));
   }
-  
-
   
   return;
 }
@@ -2155,8 +2224,8 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
   GfxRGB rgb;
   ImageStream *imgStr;
   int c;
-  int x0, y0;				// top left corner of image
-  int w0, h0, w1, h1;		// size of image
+  double x0, y0;				// top left corner of image
+  double w0, h0, w1, h1;		// size of image
   double xt, yt, wt, ht;
   GBool rotate, xFlip, yFlip;
   int x, y;
@@ -2164,23 +2233,26 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
   xmlNodePtr node = NULL;
   
   char tmp[10];
+
+  // Increment the absolute object index
+  idx++;
  
   // get image position and size
   state->transform(0, 0, &xt, &yt);
   state->transformDelta(1, 1, &wt, &ht);
   if (wt > 0) {
-    x0 = xoutRound(xt);
-    w0 = xoutRound(wt);
+    x0 = (xt);
+    w0 = (wt);
   } else {
-    x0 = xoutRound(xt + wt);
-    w0 = xoutRound(-wt);
+    x0 = (xt + wt);
+    w0 = (-wt);
   }
   if (ht > 0) {
-    y0 = xoutRound(yt);
-    h0 = xoutRound(ht);
+    y0 = (yt);
+    h0 = (ht);
   } else {
-    y0 = xoutRound(yt + ht);
-    h0 = xoutRound(-ht);
+    y0 = (yt + ht);
+    h0 = (-ht);
   }
   state->transformDelta(1, 0, &xt, &yt);
   rotate = fabs(xt) < fabs(yt);
@@ -2290,13 +2362,18 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
     xmlNewProp(node,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdImage(num, numImage, id)->getCString());
     delete id;
 	numImage = numImage + 1;
-  	sprintf(tmp,"%d",x0);
+
+	id = new GString("p");
+	xmlNewProp(node,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+	delete id;
+
+  	sprintf(tmp,ATTR_NUMFORMAT,x0);
   	xmlNewProp(node,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",y0);
+  	sprintf(tmp,ATTR_NUMFORMAT,y0);
   	xmlNewProp(node,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",w0);
+  	sprintf(tmp,ATTR_NUMFORMAT,w0);
   	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",h0);
+  	sprintf(tmp,ATTR_NUMFORMAT,h0);
   	xmlNewProp(node,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
   	sprintf(tmp,"%d",inlineImg);
   	xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)tmp);
@@ -2305,7 +2382,7 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
   }
   
   if (inlineImg && !parameters->getImageInline()){
-  	listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname));
+  	listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname, getIdx()));
   }
 
   return;

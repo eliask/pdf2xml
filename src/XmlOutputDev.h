@@ -2,6 +2,9 @@
 //
 // XmlOutputDev.h (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)
 // author: Hervé Déjean, Sophie Andrieu
+// revision (2007/11/15): Emmanuel Giguet (handling double for image location)
+// revision (2007/11/27): Emmanuel Giguet (handling double for text location)
+// revision (2007/11/29): Emmanuel Giguet (adding a serial object id in the pdf stream)
 // Xerox Research Centre Europe
 //
 //========================================================================
@@ -118,25 +121,28 @@ public:
    * @param idWord The id of word which precede this image
    * @param idImage The id of current image
    * @param href The image href
-   */
-  ImageInline(int xPosition, int yPosition, int width, int height, int idWord, int idImage, GString *href);
+   * @param idx The absolute object index in the stream */
+  ImageInline(double xPosition, double yPosition, double width, double height, int idWord, int idImage, GString *href, int index);
   
   /** Destructor 
    */
   ~ImageInline();
   
+  /** Get the absolute object index in the stream 
+   * @return The absolute object index in the stream */
+  int getIdx(){return idx;};
   /** Get the x position of the image
    *  @return The x position of the image */
-  int getXPositionImage(){return xPositionImage;}
+  double getXPositionImage(){return xPositionImage;}
   /** Get the y position of the image
    *  @return The y position of the image */
-  int getYPositionImage(){return yPositionImage;}
+  double getYPositionImage(){return yPositionImage;}
   /** Get the width value of the image
    *  @return The width value of the image */
-  int getWidthImage(){return widthImage;}
+  double getWidthImage(){return widthImage;}
   /** Get the height value of the image
    *  @return The height value of the image */
-  int getHeightImage(){return heightImage;}
+  double getHeightImage(){return heightImage;}
   /** Get the id of the word which precede this image
    *  @return The id of the word which precede this image */
   int getIdWordBefore(){return idWordBefore;}
@@ -149,16 +155,16 @@ public:
   
   /** Modify the x position of the image
    *  @param xPosition The new x position image value */
-  void setXPositionImage(int xPosition){xPositionImage = xPosition;}
+  void setXPositionImage(double xPosition){xPositionImage = xPosition;}
   /** Modify the y position of the image
    *  @param yPosition The new y position image value */
-  void setYPositionImage(int yPosition){yPositionImage = yPosition;}
+  void setYPositionImage(double yPosition){yPositionImage = yPosition;}
   /** Modify the width value of the image
    *  @param width The new width image value */
-  void setWidthImage(int width){widthImage = width;}
+  void setWidthImage(double width){widthImage = width;}
   /** Modify the height value of the image
    *  @param height The new height image value */
-  void setHeightImage(int height){heightImage = height;}
+  void setHeightImage(double height){heightImage = height;}
   /** Modify the id of the word which precede this image
    *  @param id The new id value of the word which precede this image */
   void setIdWordBefore(int id){idWordBefore = id;}
@@ -171,14 +177,16 @@ public:
   
 private:
 
+  /** The absolute object index in the stream **/
+  int idx;
   /** The x position of the image */
-  int xPositionImage;
+  double xPositionImage;
   /** The y position of the image */
-  int yPositionImage;
+  double yPositionImage;
   /** The width value of the image */
-  int widthImage;
+  double widthImage;
   /** The height value of the image */
-  int heightImage;
+  double heightImage;
   /** The id word which precede this image */
   int idWordBefore;
   /** The id current image */
@@ -215,12 +223,17 @@ public:
    * @param charPosA The position of the character
    * @param fontA The fonts informations about the current word
    * @param fontSize The font size about the current word
-   * @param idWord The id of the word (used to include and localize the image inline in the stream) */
+   * @param idWord The id of the word (used to include and localize the image inline in the stream)
+   * @param idx The absolute object index in the stream */
   TextWord(GfxState *state, int rotA, int angleDegre, int angleSkewingY, int angleSkewingX, double x0, double y0,
-	   int charPosA, TextFontInfo *fontA, double fontSize, int idWord);
+	   int charPosA, TextFontInfo *fontA, double fontSize, int idWord, int index);
 
   /** Destructor */
   ~TextWord();
+
+  /** Get the absolute object index in the stream 
+   * @return The absolute object index in the stream */
+  int getIdx(){return idx;};
 
   /** Add a character to the current word
    *  @param state The state description
@@ -319,6 +332,9 @@ private:
   
   /** The id of the word (used to include and localize the image inline in the stream) */
   int idWord;
+
+  /** The absolute object index in the stream **/
+  int idx;
 
   /** The rotation which is multiple of 90 degrees (0, 1, 2, or 3) */
   int rot;
@@ -564,6 +580,10 @@ public:
    * @return The id of the current word */
   int getIdWORD(){return idWORD;};
 
+  /** Get the absolute object index in the stream 
+   * @return The absolute object index in the stream */
+  int getIdx(){return idx;};
+
   vector<ImageInline*> listeImageInline;
   
 private:
@@ -599,6 +619,13 @@ private:
    * @param id The variable which store the result to return
    * @return The id generated which is a string */
   GString* buildIdToken(int pageNum, int tokenNum, GString *id);
+
+  /** Build the attribute <i>sid</i> for the object tags as <b>pNumberOfPage_sSID</b> 
+   * @param pageNum The numero of the current page
+   * @param sid The absolute object index in the current page
+   * @param id The variable which store the result to return
+   * @return The sid generated which is a string */
+  GString* buildSID(int pageNum, int sid, GString *id);
   
   /** Build the attribute <i>id</i> for the <i>BLOCK</i> tag as <b>pNumberOfPage_bNumberOfBlock</b> 
    * @param pageNum The numero of the current page
@@ -624,6 +651,9 @@ private:
   int numToken;
   /** The <i>BLOCK</i> numero in the current page */
   int numBlock;
+
+  /** The absolute object index in the stream */
+  int idx;
   
   /** The id current word */
   int idWORD;

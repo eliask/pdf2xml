@@ -7,6 +7,7 @@
 //
 // author: Sophie Andrieu
 // 04-2006
+// revision (11/2007): Emmanuel Giguet (handling double for image location)
 // Xerox Research Centre Europe
 //
 //========================================================================
@@ -44,6 +45,15 @@ namespace ConstantsXML
 	extern const char *TAG_M;
 	extern const char *TAG_L;
 	extern const char *TAG_C;
+	
+	
+	extern const char *TAG_PAR_CONF ;
+	extern const char *TAG_PAR_TOOL ;
+	extern const char *TAG_PAR_NAME ;
+	extern const char *TAG_PAR_VER ;
+	extern const char *TAG_PAR_DESC ;
+	extern const char *TAG_PAR_PARAM ;
+	extern const char *TAG_PAR_ATTRNAME ;
 	
 	// Tag xi:include
 	extern const char *XI_URI;
@@ -148,6 +158,10 @@ namespace ConstantsXML
 	extern const char *ATTR_PAGENUM;
 	extern const char *ATTR_AUTHOR;
 	extern const char *ATTR_OPEN;
+
+	// Attributs for number format
+	extern const char *ATTR_NUMFORMAT;
+	extern const char *ATTR_SID;
 	
 }
 

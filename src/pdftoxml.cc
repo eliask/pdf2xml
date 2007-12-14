@@ -1,3 +1,5 @@
+
+
 //==========================================================================
 //
 // pdftoxml.cc (based on pdftotext.cc, Copyright 1997-2003 Glyph & Cog, LLC)
@@ -48,7 +50,9 @@ using namespace ConstantsUtils;
 #include "ConstantsXML.h"
 using namespace ConstantsXML;
 
-void removeDataAlreadyExist(GString *dir);
+void removeAlreadyExistingData(GString *dir);
+
+static const char cvsid[] = "$Revision$";
 
 static int firstPage = 1;
 static int lastPage = 0;
@@ -56,6 +60,8 @@ static GBool physLayout = gTrue;
 static GBool verbose = gFalse;
 
 static char cfgFileName[256] = "";
+
+static char XMLcfgFileName[256] = "";
 
 static GBool noText = gFalse;
 static GBool noImage = gFalse;
@@ -114,6 +120,10 @@ static ArgDesc argDesc[] = {
    "print usage information"},
   {"-?",       argFlag,     &printHelp,     0,
    "print usage information"},
+  {"--saveconf",        argString,      XMLcfgFileName,    sizeof(XMLcfgFileName),
+   "save all command line parameters in the specified XML <file>"}, 
+//  {"-conf",        argString,      cfgFileName,    sizeof(cfgFileName),
+//   "configuration file to use in place of .xpdfrc"},
   {NULL}
 };
 
@@ -168,26 +178,29 @@ int main(int argc, char *argv[]) {
 
   // parse args
   ok = parseArgs(argDesc, &argc, argv);
-  if (!ok || argc < 2 || argc > 3 || printVersion || printHelp) { 
-    fprintf(stderr, PDFTOXML_NAME);
-    fprintf(stderr, " version ");
-    fprintf(stderr, PDFTOXML_VERSION);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "(Based on Xpdf version %s, %s)\n", xpdfVersion, xpdfCopyright);
-    fprintf(stderr, "%s\n", "Copyright 2004-2006 XEROX XRCE");
-    if (!printVersion) {
-      printUsage("pdftoxml", "<PDF-file> [<xml-file>]", argDesc);
-    }
-    goto err0;
+  if (XMLcfgFileName[0]){}
+  else{
+	  if (!ok || argc < 2 || argc > 3 || printVersion || printHelp) { 
+	    fprintf(stderr, PDFTOXML_NAME);
+	    fprintf(stderr, " version ");
+	    fprintf(stderr, PDFTOXML_VERSION);
+	    fprintf(stderr, "\n");
+	    fprintf(stderr, "(Based on Xpdf version %s, %s)\n", xpdfVersion, xpdfCopyright);
+	    fprintf(stderr, "%s\n", "Copyright 2004-2006 XRCE");
+	    if (!printVersion) {
+	      printUsage("pdftoxml", "<PDF-file> [<xml-file>]", argDesc);
+	    }
+	    goto err0;
+	  }
   }
-  fileName = new GString(argv[1]);
+//  fileName = new GString(argv[1]);
   cmd = new GString();
-  
   globalParams = new GlobalParams(cfgFileName);
   
   // Parameters specifics to pdftoxml
   parameters = new Parameters();
   
+   
   if(noImage){
     parameters->setDisplayImage(gFalse);
     cmd->append("-noImage ");
@@ -271,6 +284,14 @@ int main(int argc, char *argv[]) {
     nsURI = NULL;
   }
   
+  //store paramneters in a given XML file
+  if (XMLcfgFileName && XMLcfgFileName[0]){
+   	parameters->saveToXML(XMLcfgFileName,firstPage,lastPage);
+//   	goto err0;
+  } 
+  
+  if (argc < 2) {goto err0;}
+  fileName = new GString(argv[1]);
   // Create the object PDF doc
   doc = new PDFDocXrce(fileName, ownerPW, userPW); 
   
@@ -366,7 +387,7 @@ int main(int argc, char *argv[]) {
   	// We clean the data directory if it is already exist 
   	dataDirName = new GString(textFileName);
   	dataDirName->append(NAME_DATA_DIR);
-  	removeDataAlreadyExist(dataDirName);
+  	removeAlreadyExistingData(dataDirName);
   	
   	// Xml file to store annotations informations
   	if (annots){  	
@@ -416,7 +437,7 @@ int main(int argc, char *argv[]) {
 
 /** Remove all files which are in data directory of file pdf if it is already exist 
  * @param dir The directory name where we remove all data */
-void removeDataAlreadyExist(GString *dir) {
+void removeAlreadyExistingData(GString *dir) {
 	GString *file;
 	struct dirent *lecture;
 	DIR *rep;

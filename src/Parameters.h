@@ -18,6 +18,12 @@
 #include "GMutex.h"
 #endif
 
+#include <libxml/xmlmemory.h>
+#include <libxml/parser.h>
+
+#include "ConstantsXML.h"
+using namespace ConstantsXML;
+
 class Parameters;
 
 // The parameters object
@@ -109,6 +115,8 @@ public:
 	 * @param imageInline <code>true</code> if the noImageInline option is selected, <code>false</code> otherwise
 	 */	
 	void setImageInline(GBool imageInline);
+	
+	void saveToXML(const char *fileName,int firstPage,int lastPage);
 	
 private:
 
