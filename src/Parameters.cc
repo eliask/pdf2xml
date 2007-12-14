@@ -117,7 +117,7 @@ void Parameters::saveToXML(const char *fileName,int firstPage,int lastPage){
 	
 	
 	param = xmlNewNode(NULL,(const xmlChar*)TAG_PAR_PARAM);
-	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"-f");
+	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"first page");
 	xmlNewProp(param,(const xmlChar*)"form",(const xmlChar*)"-f");
 	xmlNewProp(param,(const xmlChar*)"default",(const xmlChar*)"1");
 	xmlNewProp(param,(const xmlChar*)"type",(const xmlChar*)"int");
@@ -127,7 +127,7 @@ void Parameters::saveToXML(const char *fileName,int firstPage,int lastPage){
 	xmlAddChild(confNode,param);
 
 	param = xmlNewNode(NULL,(const xmlChar*)TAG_PAR_PARAM);
-	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"-l");
+	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"last page");
 	xmlNewProp(param,(const xmlChar*)"form",(const xmlChar*)"-l");
 	xmlNewProp(param,(const xmlChar*)"default",(const xmlChar*)"10000");
 	xmlNewProp(param,(const xmlChar*)"type",(const xmlChar*)"int");
@@ -138,19 +138,20 @@ void Parameters::saveToXML(const char *fileName,int firstPage,int lastPage){
 	xmlAddChild(confNode,param);
 
 	param = xmlNewNode(NULL,(const xmlChar*)TAG_PAR_PARAM);
-	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"-noText");
+	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"noText");
 	xmlNewProp(param,(const xmlChar*)"form",(const xmlChar*)"-noText");
 	xmlNewProp(param,(const xmlChar*)"default",(const xmlChar*)"False");
-	xmlNewProp(param,(const xmlChar*)"help",(const xmlChar*)"do not extract textual objects");
+	xmlNewProp(param,(const xmlChar*)"help",(const xmlChar*)"do not extract text");
 	if (!getDisplayText()){sprintf(tmp,"True");}
 	else {sprintf(tmp,"False");}
 	xmlNodeSetContent(param,(const xmlChar*)tmp);
 	xmlAddChild(confNode,param);
 
 	param = xmlNewNode(NULL,(const xmlChar*)TAG_PAR_PARAM);
-	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"-noImage");
+	xmlNewProp(param,(const xmlChar*)"name",(const xmlChar*)"noImage");
+	xmlNewProp(param,(const xmlChar*)"form",(const xmlChar*)"-noImage");
 	xmlNewProp(param,(const xmlChar*)"default",(const xmlChar*)"False");
-	xmlNewProp(param,(const xmlChar*)"help",(const xmlChar*)"do not extract images (Bitmap and Vectorial)");
+	xmlNewProp(param,(const xmlChar*)"help",(const xmlChar*)"do not extract images");
 	if (!getDisplayImage()){sprintf(tmp,"True");}
 	else  {sprintf(tmp,"False");}
 	xmlNodeSetContent(param,(const xmlChar*)tmp);
