@@ -39,6 +39,7 @@ different systems.
 
 * Install libxml2 (Should be already installed on your linux distribution). See http://xmlsoft.org/  
 * Install xpdf. See http://www.foolabs.com/xpdf/
+* create libxpdf.a  in xpdf-XX/xpdf/    with ar -rc libxpdf.a *.o
 * Update Makefile.linux (paths to xpdf) 
 
 * Type 'make'.  This should build the executable:
