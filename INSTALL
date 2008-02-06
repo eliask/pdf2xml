@@ -28,7 +28,7 @@ different systems.
     pdftoxml
         |- exe
         |- src
-        |- xpdf_3.01
+        |- xpdf-3.XX
             |- fofi
             |- goo
             |- splash
