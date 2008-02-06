@@ -24,6 +24,10 @@ a:cvs-header [
 a:cvs-log [
     '''
     $Log$
+    Revision 1.2  2008/02/06 10:48:28  dejean
+    TOKEN/@type added (LR direction)
+    some modif about yes, no , true, false attribute values.
+
     Revision 1.1  2008/01/29 08:53:24  dejean
     v 1.2
 
@@ -186,9 +190,10 @@ Page=element PAGE {
 
 a-Image=
     a-Basic,
-    attribute inline {"false" | "true"},
+    #attribute rotation {"false| true" }?,
+    attribute inline {"false" | "true"}?,
     attribute href {xsd:anyURI},
-    attribute mask {"yes" }?,
+    attribute mask {"true" }?,
     attribute id { xsd:string {pattern = "p\d+_i\d+"}}?,
     sid
 
@@ -284,6 +289,7 @@ a-Token=
     a-Basic,
     sid,
     attribute id { xsd:string {pattern = "p\d+_w\d+"}},
+    attribute type { xsd:integer}?,
    (a-tokenImage? | a-tokenText?)
 
 c-Token=text 
