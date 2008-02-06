@@ -3,10 +3,12 @@
 // XmlOutputDev.cc (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)
 // author: Hervé Déjean, Sophie Andrieu
 // 04-2006
+// copyright Xerox Research Centre Europe 2006
 // revision (2007/11/15): Emmanuel Giguet (handling double for image location)
 // revision (2007/11/27): Emmanuel Giguet (handling double for text location)
 // revision (2007/11/29): Emmanuel Giguet (adding a serial object id in the pdf stream)
-// Xerox Research Centre Europe
+// revision (2008/02/06): HD inverse color correction (SF Tracker 1885562)
+// revision (2008/02/06): HD add IMAGE/@ROTATE (SF Tracker 1885562) yes/ default = no
 //
 //=================================================================================
 
@@ -1990,7 +1992,7 @@ void TextPage::createPath(GfxPath *path, GfxState *state, xmlNodePtr groupNode){
     
     	if (subpath->isClosed()) {
       		if (!xmlHasProp(groupNode,(const xmlChar*)ATTR_CLOSED)){
-        		xmlNewProp(groupNode,(const xmlChar*)ATTR_CLOSED,(const xmlChar*)"true");
+        		xmlNewProp(groupNode,(const xmlChar*)ATTR_CLOSED,(const xmlChar*)sTRUE);
       		}
     	}
   	}
@@ -2074,7 +2076,7 @@ void TextPage::eoClip(GfxState *state) {
    	xmlNewProp(gnode,(const xmlChar*)ATTR_IDCLIPZONE,(const xmlChar*)buildIdClipZone(num, idClip, id)->getCString());
    	delete id;
 
-   	xmlNewProp(gnode,(const xmlChar*)ATTR_EVENODD,(const xmlChar*)"true");
+   	xmlNewProp(gnode,(const xmlChar*)ATTR_EVENODD,(const xmlChar*)sTRUE);
    	
    	doPathForClip(state->getPath(), state, gnode);
 }
@@ -2194,14 +2196,23 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 	sprintf(tmp,ATTR_NUMFORMAT,x0);
   	xmlNewProp(node,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
   	sprintf(tmp,ATTR_NUMFORMAT,y0);
+  	
   	xmlNewProp(node,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
   	sprintf(tmp,ATTR_NUMFORMAT,w0);
   	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-  	sprintf(tmp,ATTR_NUMFORMAT,h0);
+  	sprintf(tmp,ATTR_NUMFORMAT,h0); 
   	xmlNewProp(node,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",inlineImg);
-  	xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)tmp);
-  	xmlNewProp(node,(const xmlChar*)ATTR_MASK,(const xmlChar*)YES);
+//	if (rotate){
+//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sTRUE);
+//	}
+//	else{
+//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sFALSE);
+//	}
+	//  	sprintf(tmp,"%d",inlineImg);
+	if (inlineImg){
+		xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)sTRUE);
+	}
+	xmlNewProp(node,(const xmlChar*)ATTR_MASK,(const xmlChar*)sTRUE);
   	xmlNewProp(node,(const xmlChar*)ATTR_HREF,(const xmlChar*)refname->getCString());
   	xmlAddChild(page,node);
   }
@@ -2345,9 +2356,9 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
       		p = imgStr->getLine();
       		for (x = 0; x < width; ++x) {
 				colorMap->getRGB(p, &rgb);
-				fputc((int)(rgb.r * 255 + 0.5), f);
-				fputc((int)(rgb.g * 255 + 0.5), f);
-				fputc((int)(rgb.b * 255 + 0.5), f);
+				fputc(colToByte(rgb.r), f);
+				fputc(colToByte(rgb.g), f);
+				fputc(colToByte(rgb.b), f);				
 				p += colorMap->getNumPixelComps();
       		}
     	}
@@ -2375,8 +2386,15 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
   	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
   	sprintf(tmp,ATTR_NUMFORMAT,h0);
   	xmlNewProp(node,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
-  	sprintf(tmp,"%d",inlineImg);
-  	xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)tmp);
+//	if (rotate){
+//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sTRUE);
+//	}
+//	else{
+//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sFALSE);
+//	}
+  	if (inlineImg){
+  		xmlNewProp(node,(const xmlChar*)ATTR_INLINE,(const xmlChar*)sTRUE);
+  	}
   	xmlNewProp(node,(const xmlChar*)ATTR_HREF,(const xmlChar*)refname->getCString());
     xmlAddChild(page,node);
   }

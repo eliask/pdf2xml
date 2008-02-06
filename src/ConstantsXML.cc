@@ -121,6 +121,8 @@ namespace ConstantsXML
 	const char *YES = "yes";
 	const char *NO = "no";
 	
+	const char *sTRUE = "true";
+	const char *sFALSE = "false";
 
 	
 	// Tag XML for file Outline

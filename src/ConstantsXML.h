@@ -128,6 +128,8 @@ namespace ConstantsXML
 	
 	extern const char *YES;
 	extern const char *NO;
+	extern const char *sTRUE;
+	extern const char *sFALSE;
 	
 	// Tag XML for file Outline
 	extern const char *TAG_TOCITEMS;
