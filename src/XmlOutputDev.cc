@@ -9,6 +9,8 @@
 // revision (2007/11/29): Emmanuel Giguet (adding a serial object id in the pdf stream)
 // revision (2008/02/06): HD inverse color correction (SF Tracker 1885562)
 // revision (2008/02/06): HD add IMAGE/@ROTATE (SF Tracker 1885562) yes/ default = no
+// revision (2008/02/07): HD (SF Tracker 1888666 )
+// revision (2008/02/07): HD deletion of @base in verobse atribute
 //
 //=================================================================================
 
@@ -119,19 +121,19 @@ using namespace ConstantsXML;
 
 TextFontInfo::TextFontInfo(GfxState *state) {
   gfxFont = state->getFont();
-#if TEXTOUT_WORD_LIST
+//#if TEXTOUT_WORD_LIST
   fontName = (gfxFont && gfxFont->getOrigName())
                  ? gfxFont->getOrigName()->copy()
                  : (GString *)NULL;
-#endif
+//#endif
 }
 
 TextFontInfo::~TextFontInfo() {
-#if TEXTOUT_WORD_LIST
+//#if TEXTOUT_WORD_LIST
   if (fontName) {
     delete fontName;
   }
-#endif
+//#endif
 }
 
 GBool TextFontInfo::matches(GfxState *state) {
@@ -578,8 +580,8 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
   		xmlAddChild(root,page);
   	}
   
-  	fprintf(stderr, "Page %d\n",pageNum);
-  	fflush(stderr);
+//  	fprintf(stderr, "Page %d\n",pageNum);
+//  	fflush(stderr);
 
   	// New file for vectorials instructions 
   	vecdoc = xmlNewDoc((const xmlChar*)VERSION);
@@ -1125,16 +1127,20 @@ void TextPage::addAttributsNodeVerbose(xmlNodePtr node, char* tmp, TextWord *wor
         	xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
 }
 
-void TextPage::addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, double &xMaxi, double &yMaxi, double &yMinRot, double &yMaxRot, double &xMinRot, double &xMaxRot){ 	
+void TextPage::addAttributsNode(xmlNodePtr node, TextWord *word, double &xMaxi, double &yMaxi, double &yMinRot, double &yMaxRot, double &xMinRot, double &xMaxRot){ 	
 
-		if (word->font !=NULL && word->font->gfxFont!=NULL){
-			if (word->font->gfxFont->isSymbolic()){
+	
+		char *tmp;
+		tmp=(char*)malloc(10*sizeof(char));
+		
+		if (word->font != NULL){
+			if (word->font->isSymbolic()){
 				xmlNewProp(node,(const xmlChar*)ATTR_SYMBOLIC,(const xmlChar*)YES);
 			}
-			if (word->font->gfxFont->isSerif()){
+			if (word->font->isSerif()){
 				xmlNewProp(node,(const xmlChar*)ATTR_SERIF,(const xmlChar*)YES);
 			}
-			if (word->font->gfxFont->isFixedWidth()){
+			if (word->font->isFixedWidth()){
 				xmlNewProp(node,(const xmlChar*)ATTR_FIXED_WIDTH,(const xmlChar*)YES);
 			}
 		}
@@ -1156,9 +1162,6 @@ void TextPage::addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, doub
       	sprintf(tmp,"%d",word->angle);
 	  	xmlNewProp(node,(const xmlChar*)ATTR_ANGLE,(const xmlChar*)tmp);
 
-        sprintf(tmp,"%g",word->base);
-        xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
-
       	sprintf(tmp,ATTR_NUMFORMAT,word->xMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
 
@@ -1176,6 +1179,8 @@ void TextPage::addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, doub
       	if (word->yMax > yMaxi) {yMaxi = word->yMax;}	
       	if (word->yMin < yMinRot) {yMinRot = word->yMin;}	
       	if (word->yMax > yMaxRot) {yMaxRot = word->yMax;}	
+      	
+      	free(tmp);
 }
 
 void TextPage::dump(GBool blocks, GBool fullFontName) {
@@ -1200,6 +1205,10 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
   	double xMinRot = 0;
   	int firstword= 1; // firstword of a TEXT tag
 
+  	// x and y for nodeline: min (xi) min(yi) whatever the text rotation is
+  	double minLineX =0;
+  	double minLineY = 0;
+  	
   	xmlNodePtr node = NULL;
   	xmlNodePtr nodeline = NULL;
   	xmlNodePtr nodeblocks = NULL;
@@ -1231,191 +1240,227 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 	numText = 1;
 	numBlock = 1;
   	// Output the page in raw (content stream) order
-  	if (rawOrder) {
-		lineFontSize = 0;
-    	nodeline = xmlNewNode(NULL,(const xmlChar*)TAG_TEXT);
-    	nodeline->type = XML_ELEMENT_NODE;
-    	
-    	if (blocks){
-     		nodeblocks = xmlNewNode(NULL,(const xmlChar*)TAG_BLOCK);
-    		nodeblocks->type = XML_ELEMENT_NODE;
-    	}
-    		
-    	if (rawWords)  {
-    		if (blocks){
-    			xmlAddChild(page,nodeblocks);
-    			id = new GString("p");
-    			xmlNewProp(nodeblocks,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
-    			delete id;
-    			numBlock = numBlock + 1;
-    		}else {
-    			xmlAddChild(page,nodeline);
-    		}
-    	}
-    	xMin= yMin = xMax = yMax =0;
 
-    	// TEXT properties : first from first word
-    	for (word = rawWords; word; word = word->next) {
-    		lineFinish = gFalse;
-    		if (firstword){
-				xMin = word->xMin;
-				yMin = word->yMin;
-				xMax = word->xMax;
-				yMax = word->yMax;
-				yMaxRot = word->yMax;
-				yMinRot = word->yMin;
-				xMaxRot = word->xMax;
-				xMinRot = word->xMin;
-				sprintf(tmp,ATTR_NUMFORMAT,word->xMin);
-				xmlNewProp(nodeline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-				sprintf(tmp,ATTR_NUMFORMAT,word->yMin);
-				xmlNewProp(nodeline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);	
-				lineX = word->xMin;
-				lineYmin = word->yMin;
-				firstword = 0;
-				lineFontSize = 0;
-     		}
-      	
-      	node = xmlNewNode(NULL,(const xmlChar*)TAG_TOKEN);
+	lineFontSize = 0;
+	nodeline = xmlNewNode(NULL, (const xmlChar*)TAG_TEXT);
+	nodeline->type = XML_ELEMENT_NODE;
 
-      	node->type = XML_ELEMENT_NODE;   	
+	if (blocks) {
+		nodeblocks = xmlNewNode(NULL, (const xmlChar*)TAG_BLOCK);
+		nodeblocks->type = XML_ELEMENT_NODE;
+		
+		xmlAddChild(page, nodeblocks);
+		id = new GString("p");
+		xmlNewProp(nodeblocks, (const xmlChar*)ATTR_ID,
+				(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
+		delete id;
+		numBlock = numBlock + 1;
+	} 
+	else {
+		xmlAddChild(page, nodeline);
+	}
+	
+	xMin= yMin = xMax = yMax =0;
+	minLineX = 999999999;
+	minLineY = 999999999;
+	
+	for (word = rawWords; word; word = word->next) {
+		lineFinish = gFalse;
+		if (firstword) { // test useful?
+			xMin = word->xMin;
+			yMin = word->yMin;
+			xMax = word->xMax;
+			yMax = word->yMax;
+			yMaxRot = word->yMax;
+			yMinRot = word->yMin;
+			xMaxRot = word->xMax;
+			xMinRot = word->xMin;
+			lineX = word->xMin;
+			lineYmin = word->yMin;
+			firstword = 0;
+			lineFontSize = 0;
+		}
+		if (word->xMin < minLineX){ minLineX = word->xMin;} // for nodeline
+		if (word->yMin < minLineY){ minLineY = word->yMin;} // for nodeline
+		
+		node = xmlNewNode(NULL, (const xmlChar*)TAG_TOKEN);
 
-      	id = new GString("p");
-  	xmlNewProp(node,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, word->getIdx(), id)->getCString());
-      	delete id;
+		node->type = XML_ELEMENT_NODE;
 
-      	id = new GString("p");
-      	xmlNewProp(node,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
-      	delete id;
+		id = new GString("p");
+		xmlNewProp(node, (const xmlChar*)ATTR_SID, (const xmlChar*)buildSID(num, word->getIdx(), id)->getCString());
+		delete id;
+
+		id = new GString("p");
+		xmlNewProp(node, (const xmlChar*)ATTR_ID, (const xmlChar*)buildIdToken(num, numToken, id)->getCString());
+		delete id;
 		numToken = numToken + 1;
 
 		stringTemp = new GString();
 
-      	dumpFragment(word->text, word->len, uMap, stringTemp);
+		dumpFragment(word->text, word->len, uMap, stringTemp);
 
-		if (word->fontSize > lineFontSize){
+		if (word->fontSize > lineFontSize) {
 			lineFontSize = word->fontSize;
 		}
-		
-      	// If option verbose is selected
-      	if (verbose){
-      		addAttributsNodeVerbose(node, tmp, word);
-      	}
-      	    	
-      	if (word->getFontName()) {
-      		// If the font name normalization option is selected
-      		if (fullFontName){
-      			xmlNewProp(node,(const xmlChar*)ATTR_FONT_NAME,(const xmlChar*)word->getFontName());
-      		}else{
-      			xmlNewProp(node,(const xmlChar*)ATTR_FONT_NAME,(const xmlChar*)word->normalizeFontName(word->getFontName()));
-      		}
-      	}
-    	
-	    addAttributsNode(node, tmp, word, xMax, yMax, yMinRot, yMaxRot, xMinRot, xMaxRot);
-      	addAttributTypeReadingOrder(node, tmp, word);
-      
-      	xmlNodeSetContent(node,(const xmlChar*)xmlEncodeEntitiesReentrant(node->doc,(const xmlChar*)stringTemp->getCString()));
-		
+
+		// If option verbose is selected
+		if (verbose) {
+			addAttributsNodeVerbose(node, tmp, word);
+		}
+
+		if (word->getFontName()) {
+			// If the font name normalization option is selected
+			if (fullFontName) {
+				xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME,
+						(const xmlChar*)word->getFontName());
+			} else {
+				xmlNewProp(
+						node,
+						(const xmlChar*)ATTR_FONT_NAME,
+						(const xmlChar*)word->normalizeFontName(word->getFontName()));
+			}
+		}
+
+		addAttributsNode(node, word, xMax, yMax, yMinRot, yMaxRot, xMinRot,
+				xMaxRot);
+		addAttributTypeReadingOrder(node, tmp, word);
+
+		xmlNodeSetContent(node, (const xmlChar*)xmlEncodeEntitiesReentrant(
+				node->doc, (const xmlChar*)stringTemp->getCString()));
+
 		delete stringTemp;
-		  	
+
 		double xxMin, xxMax, xxMinNext;
 		double yyMin, yyMax, yyMinNext;
-	
+
 		// Rotation cases
-  		switch (word->rot) {
-  		case 0:
-  			xxMin = word->xMin;
-  			xxMax = word->xMax;
-  			yyMin = word->yMin;
-  			yyMax = word->yMax;
-  			if (word->next){
-  				xxMinNext = word->next->xMin;
-  				yyMinNext = word->next->yMin;
-  			}
-    		break;
-    
-   		case 3:
-  			xxMin = word->yMin;
-  			xxMax = word->yMax;
-  			yyMin = word->xMax;
-  			yyMax = word->xMin;
-  			if (word->next){ 
-  				xxMinNext = word->next->yMin; 
-  				yyMinNext = word->next->xMax;
-  			}
-    		break;
-    
-  		case 2:
-  			xxMin = word->xMax;
-  			xxMax = word->xMin;
-  			yyMin = word->yMax;
-  			yyMax = word->yMin;
-  			if (word->next){ 
-  				xxMinNext = word->next->xMax;
-  				yyMinNext = word->next->yMax;
-  			}
-    		break;
-    
-   		case 1:
-  			xxMin = word->yMax;
-  			xxMax = word->yMin;
-  			yyMin = word->xMax;
-  			yyMax = word->xMin;
-  			if (word->next){ 
-  				xxMinNext = word->next->yMax;
-  				yyMinNext = word->next->xMax;
-  			}
-    		break;
-  		}	
-  		
-  		// Get the rotation into four axis
-	  	int rotation = -1;
-	  	if (word->rot==0 && word->angle==0){rotation = 0;}
-	  	if (word->rot==1 && word->angle==90){rotation = 1;}
-	  	if (word->rot==2 && word->angle==180){rotation = 2;}
-	  	if (word->rot==3 && word->angle==270){rotation = 3;}
+		switch (word->rot) {
+		case 0:
+			xxMin = word->xMin;
+			xxMax = word->xMax;
+			yyMin = word->yMin;
+			yyMax = word->yMax;
+			if (word->next) {
+				xxMinNext = word->next->xMin;
+				yyMinNext = word->next->yMin;
+			}
+			break;
 
-	  	// Add next images inline whithin the current line if the noImageInline option is not selected	  	
-	  	if (!parameters->getImageInline()){
-	  		if (indiceImage != -1){
-	  			int nb = listeImageInline.size();
-	  			for (; indiceImage<nb ; indiceImage++){
-				  if (idWORDBefore == listeImageInline[indiceImage]->idWordBefore){
-				    nodeImageInline = xmlNewNode(NULL,(const xmlChar*)TAG_TOKEN);
-				    nodeImageInline->type = XML_ELEMENT_NODE;
-				    id = new GString("p");
-				    xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
-				    delete id;
-				    numToken = numToken + 1;				
-				    id = new GString("p");
-				    xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_SID,(const xmlChar*)buildSID(num, listeImageInline[indiceImage]->getIdx(), id)->getCString());
-				    delete id;
-						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getXPositionImage());
-						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
-						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getYPositionImage());
-						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
-						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getWidthImage());
-						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-						sprintf(tmp,ATTR_NUMFORMAT,listeImageInline[indiceImage]->getHeightImage());
-						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
-						xmlNewProp(nodeImageInline,(const xmlChar*)ATTR_HREF,(const xmlChar*)listeImageInline[indiceImage]->getHrefImage()->getCString());
-    					xmlAddChild(nodeline,nodeImageInline);
-	  				}
-	  			}	  	
-	  		}
-	  	}
+		case 3:
+			xxMin = word->yMin;
+			xxMax = word->yMax;
+			yyMin = word->xMax;
+			yyMax = word->xMin;
+			if (word->next) {
+				xxMinNext = word->next->yMin;
+				yyMinNext = word->next->xMax;
+			}
+			break;
 
-	  	// Add the attributes width and height to the node TEXT
-	  	// The line is finish IF :
-	  	// 		- there is no next word 
-	  	//		- or IF the rotation if current word is different of the rotation next word
-	  	//		- or IF the difference between the base of current word and the yMin next word is superior to the maxSpacingWordsBetweenTwoLines
-	  	//		- or IF the difference between the base of current word and the base next word is superior to maxIntraLineDelta * lineFontSize
-	  	//		- or IF the xMax current word ++ maxWordSpacing * lineFontSize is superior to the xMin next word.
-      	if ( word->next && (word->rot==word->next->rot) &&
-      		(( (fabs(word->base - word->next->baseYmin) < maxSpacingWordsBetweenTwoLines) ||
-      		   (fabs(word->next->base - word->base) < maxIntraLineDelta * lineFontSize) ) && 
-      		   (word->next->xMin <= word->xMax + maxWordSpacing * lineFontSize) )) {   
+		case 2:
+			xxMin = word->xMax;
+			xxMax = word->xMin;
+			yyMin = word->yMax;
+			yyMax = word->yMin;
+			if (word->next) {
+				xxMinNext = word->next->xMax;
+				yyMinNext = word->next->yMax;
+			}
+			break;
+
+		case 1:
+			xxMin = word->yMax;
+			xxMax = word->yMin;
+			yyMin = word->xMax;
+			yyMax = word->xMin;
+			if (word->next) {
+				xxMinNext = word->next->yMax;
+				yyMinNext = word->next->xMax;
+			}
+			break;
+		}
+
+		// Get the rotation into four axis
+		int rotation = -1;
+		if (word->rot==0 && word->angle==0) {
+			rotation = 0;
+		}
+		if (word->rot==1 && word->angle==90) {
+			rotation = 1;
+		}
+		if (word->rot==2 && word->angle==180) {
+			rotation = 2;
+		}
+		if (word->rot==3 && word->angle==270) {
+			rotation = 3;
+		}
+
+		// Add next images inline whithin the current line if the noImageInline option is not selected	  	
+		if (!parameters->getImageInline()) {
+			if (indiceImage != -1) {
+				int nb = listeImageInline.size();
+				for (; indiceImage<nb; indiceImage++) {
+					if (idWORDBefore
+							== listeImageInline[indiceImage]->idWordBefore) {
+						nodeImageInline = xmlNewNode(NULL,
+								(const xmlChar*)TAG_TOKEN);
+						nodeImageInline->type = XML_ELEMENT_NODE;
+						id = new GString("p");
+						xmlNewProp(nodeImageInline, (const xmlChar*)ATTR_ID,
+								(const xmlChar*)buildIdToken(num, numToken, id)->getCString());
+						delete id;
+						numToken = numToken + 1;
+						id = new GString("p");
+						xmlNewProp(
+								nodeImageInline,
+								(const xmlChar*)ATTR_SID,
+								(const xmlChar*)buildSID(num, listeImageInline[indiceImage]->getIdx(), id)->getCString());
+						delete id;
+						sprintf(
+								tmp,
+								ATTR_NUMFORMAT,
+								listeImageInline[indiceImage]->getXPositionImage());
+						xmlNewProp(nodeImageInline, (const xmlChar*)ATTR_X,
+								(const xmlChar*)tmp);
+						sprintf(
+								tmp,
+								ATTR_NUMFORMAT,
+								listeImageInline[indiceImage]->getYPositionImage());
+						xmlNewProp(nodeImageInline, (const xmlChar*)ATTR_Y,
+								(const xmlChar*)tmp);
+						sprintf(tmp, ATTR_NUMFORMAT,
+								listeImageInline[indiceImage]->getWidthImage());
+						xmlNewProp(nodeImageInline, (const xmlChar*)ATTR_WIDTH,
+								(const xmlChar*)tmp);
+						sprintf(tmp, ATTR_NUMFORMAT,
+								listeImageInline[indiceImage]->getHeightImage());
+						xmlNewProp(nodeImageInline,
+								(const xmlChar*)ATTR_HEIGHT,
+								(const xmlChar*)tmp);
+						xmlNewProp(
+								nodeImageInline,
+								(const xmlChar*)ATTR_HREF,
+								(const xmlChar*)listeImageInline[indiceImage]->getHrefImage()->getCString());
+						xmlAddChild(nodeline, nodeImageInline);
+					}
+				}
+			}
+		}
+
+		// Add the attributes width and height to the node TEXT
+		// The line is finish IF :
+		// 		- there is no next word 
+		//		- or IF the rotation if current word is different of the rotation next word
+		//		- or IF the difference between the base of current word and the yMin next word is superior to the maxSpacingWordsBetweenTwoLines
+		//		- or IF the difference between the base of current word and the base next word is superior to maxIntraLineDelta * lineFontSize
+		//		- or IF the xMax current word ++ maxWordSpacing * lineFontSize is superior to the xMin next word.
+		if (word->next && (word->rot==word->next->rot) && (( (fabs(word->base
+				- word->next->baseYmin) < maxSpacingWordsBetweenTwoLines)
+				|| (fabs(word->next->base - word->base)
+						< maxIntraLineDelta * lineFontSize) )
+				&& (word->next->xMin <= word->xMax
+						+ maxWordSpacing * lineFontSize) )) {
 
 			// IF - switch the rotation : 
 			//			base word and yMin word are inferior to yMin next word
@@ -1423,195 +1468,250 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 			//			xMax word is superior to xMin next word and the difference between the base of current word and the next word is superior to maxIntraLineDelta*lineFontSize
 			//			xMin next word is superior to xMax word + maxWordSpacing * lineFontSize
 			//THEN if one of these tests is true, the line is finish
-			if (( (rotation==-1) ? ((word->base < word->next->yMin) && (word->yMin < word->next->yMin)) : (word->rot==0||word->rot==1) ? ((word->base < yyMinNext) && (yyMin < yyMinNext)) : ((word->base > yyMinNext) && (yyMin > yyMinNext)) ) || 
-				( (rotation==-1) ? (word->next->xMin < word->xMin) : (word->rot==0) ? (xxMinNext < xxMin) : (word->rot==1 ? xxMinNext > xxMin : (word->rot==2 ? xxMinNext > xxMin : xxMinNext < xxMin) ) ) || 
-				( (rotation==-1) ? (word->next->xMin<word->xMax) && (fabs(word->next->base-word->base)>maxIntraLineDelta*lineFontSize) : (word->rot==0||word->rot==3) ? ( (xxMinNext<xxMax) && (fabs(word->next->base-word->base)>maxIntraLineDelta*lineFontSize) ) : ( (xxMinNext > xxMax) && (fabs(word->next->base-word->base)>maxIntraLineDelta*lineFontSize) )) ||
-				( (rotation==-1) ? (word->next->xMin > word->xMax + maxWordSpacing * lineFontSize) : (word->rot==0||word->rot==3) ? (xxMinNext > xxMax + maxWordSpacing * lineFontSize) : (xxMinNext < xxMax - maxWordSpacing * lineFontSize))){
-	
-		  		xmlAddChild(nodeline,node);
+			if (( (rotation==-1) ? ((word->base < word->next->yMin)
+					&& (word->yMin < word->next->yMin)) : (word->rot==0
+					||word->rot==1) ? ((word->base < yyMinNext) && (yyMin
+					< yyMinNext)) : ((word->base > yyMinNext) && (yyMin
+					> yyMinNext)) ) || ( (rotation==-1) ? (word->next->xMin
+					< word->xMin) : (word->rot==0) ? (xxMinNext < xxMin)
+					: (word->rot==1 ? xxMinNext > xxMin
+							: (word->rot==2 ? xxMinNext > xxMin : xxMinNext
+									< xxMin) ) )
+					|| ( (rotation==-1) ? (word->next->xMin<word->xMax)
+							&& (fabs(word->next->base-word->base)
+									>maxIntraLineDelta*lineFontSize)
+							: (word->rot==0||word->rot==3) ? ( (xxMinNext<xxMax)
+									&& (fabs(word->next->base-word->base)
+											>maxIntraLineDelta*lineFontSize) )
+									: ( (xxMinNext > xxMax)
+											&& (fabs(word->next->base
+													-word->base)
+													>maxIntraLineDelta*lineFontSize) ))
+					|| ( (rotation==-1) ? (word->next->xMin > word->xMax
+							+ maxWordSpacing * lineFontSize) : (word->rot==0
+							||word->rot==3) ? (xxMinNext > xxMax
+							+ maxWordSpacing * lineFontSize) : (xxMinNext
+							< xxMax - maxWordSpacing * lineFontSize))) {
+
+				xmlAddChild(nodeline, node);
 				double arr;
-				if (word->rot==2){
-		  			arr = fabs(ceil(xMaxRot-xMinRot));
-		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
-		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);			
+				if (word->rot==2) {
+					arr = fabs(xMaxRot-xMinRot);
+					sprintf(tmp, ATTR_NUMFORMAT, arr);
+					xmlNewProp(nodeline, (const xmlChar*)ATTR_WIDTH,
+							(const xmlChar*)tmp);
 					lineWidth = arr;
-				}else{
-					arr = ceil(xMax-xMin);
-		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
-		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);			
+				} else {
+					arr = xMax-xMin;
+					sprintf(tmp, ATTR_NUMFORMAT, arr);
+					xmlNewProp(nodeline, (const xmlChar*)ATTR_WIDTH,
+							(const xmlChar*)tmp);
 					lineWidth = arr;
 				}
-				
-				if (word->rot==0||word->rot==2){
-		  			arr = ceil(yMax-yMin);
-		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
-		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
+
+				if (word->rot==0||word->rot==2) {
+					arr = yMax-yMin;
+					sprintf(tmp, ATTR_NUMFORMAT, arr);
+					xmlNewProp(nodeline, (const xmlChar*)ATTR_HEIGHT,
+							(const xmlChar*)tmp);
 					lineHeight = arr;
 				}
-				
-				if (word->rot==1||word->rot==3){
-					arr = ceil(yMaxRot-yMinRot);
-		  			sprintf(tmp,ATTR_NUMFORMAT,arr);
-		  			xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
+
+				if (word->rot==1||word->rot==3) {
+					arr = yMaxRot-yMinRot;
+					sprintf(tmp, ATTR_NUMFORMAT, arr);
+					xmlNewProp(nodeline, (const xmlChar*)ATTR_HEIGHT,
+							(const xmlChar*)tmp);
 					lineHeight = arr;
 				}
+
+				sprintf(tmp,ATTR_NUMFORMAT,minLineX);
+				xmlNewProp(nodeline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
+				sprintf(tmp,ATTR_NUMFORMAT,minLineY);
+				xmlNewProp(nodeline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
 				
 				// Add the ID attribute for the TEXT tag
 				id = new GString("p");
-    			xmlNewProp(nodeline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdText(num, numText, id)->getCString());
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_ID,
+						(const xmlChar*)buildIdText(num, numText, id)->getCString());
 				delete id;
 				numText = numText + 1;
-					
-				if (word->fontSize > lineFontSize){
+
+				if (word->fontSize > lineFontSize) {
 					lineFontSize = word->fontSize;
 				}
-				
+
 				// Include a TOKEN tag for the image inline if it exists
-				if (!parameters->getImageInline()){
-  					addImageInlineNode(nodeline, nodeImageInline, tmp, word);
+				if (!parameters->getImageInline()) {
+					addImageInlineNode(nodeline, nodeImageInline, tmp, word);
 				}
-				
-				if (word->next){
-	    			firstword = 1;
-	    			if (blocks){
-	    				lineFinish = gTrue;
-	    			}else {
-	    				nodeline = xmlNewNode(NULL,(const xmlChar*)TAG_TEXT);
-	    				nodeline->type = XML_ELEMENT_NODE;	    				
-	    				xmlAddChild(page,nodeline);	   
-	    			} 				
-	  			}else{
+
+				if (word->next) {
+					firstword = 1;
+					if (blocks) {
+						lineFinish = gTrue;
+					} else {
+						// new line
+						nodeline = xmlNewNode(NULL, (const xmlChar*)TAG_TEXT);
+						nodeline->type = XML_ELEMENT_NODE;
+						xmlAddChild(page, nodeline);
+						minLineY = 999999999; 
+						minLineX = 999999999;
+					}
+				} else {
 					endPage = gTrue;
-				}  				
-	  			xMin = yMin = xMax = yMax = yMinRot = yMaxRot = xMaxRot = xMinRot = 0;
+				}
+				xMin = yMin = xMax = yMax = yMinRot = yMaxRot = xMaxRot
+						= xMinRot = 0;
+			} else {
+				xmlAddChild(nodeline, node);
+
+				// Include a TOKEN tag for the image inline if it exists
+				if (!parameters->getImageInline()) {
+					addImageInlineNode(nodeline, nodeImageInline, tmp, word);
+				}
 			}
-			else{
-	  			xmlAddChild(nodeline,node);
-	  			
-	  			// Include a TOKEN tag for the image inline if it exists
-	  			if (!parameters->getImageInline()){
-  					addImageInlineNode(nodeline, nodeImageInline, tmp, word);
-	  			}
-			}
-    	}
-    	else {
-    		double arr;
-			if (word->rot==2){
-    			arr = fabs(ceil(xMaxRot-xMinRot));
-    			sprintf(tmp,ATTR_NUMFORMAT,arr);
-				xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
+		} else {
+			// node to be added to nodeline
+			double arr;
+			if (word->rot==2) {
+				arr = fabs(xMaxRot-xMinRot);
+				sprintf(tmp, ATTR_NUMFORMAT, arr);
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_WIDTH,
+						(const xmlChar*)tmp);
+				lineWidth = arr;
+			} else {
+				arr = xMax-xMin;
+				sprintf(tmp, ATTR_NUMFORMAT, arr);
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_WIDTH,
+						(const xmlChar*)tmp);
 				lineWidth = arr;
 			}
-			else{
-				arr = ceil(xMax-xMin);
-    			sprintf(tmp,ATTR_NUMFORMAT,arr);
-				xmlNewProp(nodeline,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
-				lineWidth = arr;
-			}
-			
-			if (word->rot==0||word->rot==2){
-				arr = ceil(yMax-yMin);
-				sprintf(tmp,ATTR_NUMFORMAT,arr);
-				xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
+
+			if (word->rot==0||word->rot==2) {
+				arr = yMax-yMin;
+				sprintf(tmp, ATTR_NUMFORMAT, arr);
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_HEIGHT,
+						(const xmlChar*)tmp);
 				lineHeight = arr;
 			}
-			
-			if (word->rot==1||word->rot==3){
-				arr = ceil(yMaxRot-yMinRot);
-		  		sprintf(tmp,ATTR_NUMFORMAT,arr);
-		  		xmlNewProp(nodeline,(const xmlChar*)ATTR_HEIGHT,(const xmlChar*)tmp);
+
+			if (word->rot==1||word->rot==3) {
+				arr = yMaxRot-yMinRot;
+				sprintf(tmp, ATTR_NUMFORMAT, arr);
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_HEIGHT,
+						(const xmlChar*)tmp);
 				lineHeight = arr;
 			}
-			
-			xmlAddChild(nodeline,node);
-			
+
+			xmlAddChild(nodeline, node);
+
 			// Include a TOKEN tag for the image inline if it exists
-			if (!parameters->getImageInline()){
+			if (!parameters->getImageInline()) {
 				addImageInlineNode(nodeline, nodeImageInline, tmp, word);
 			}
-			
+
 			// Add the ID attribute for the TEXT tag
 			id = new GString("p");
-    		xmlNewProp(nodeline,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdText(num, numText, id)->getCString());
+			xmlNewProp(nodeline, (const xmlChar*)ATTR_ID,
+					(const xmlChar*)buildIdText(num, numText, id)->getCString());
 			delete id;
 			numText = numText + 1;
-				
-			if (word->fontSize > lineFontSize){
+			
+			
+			sprintf(tmp,ATTR_NUMFORMAT,minLineX);
+			xmlNewProp(nodeline,(const xmlChar*)ATTR_X,(const xmlChar*)tmp);
+			sprintf(tmp,ATTR_NUMFORMAT,minLineY);
+			xmlNewProp(nodeline,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
+			
+			if (word->fontSize > lineFontSize) {
 				lineFontSize = word->fontSize;
 			}
-			
+
 			firstword = 1;
-			xMin = yMin = xMax = yMax = yMinRot = yMaxRot = xMaxRot = xMinRot = 0;
-		
-			if (word->next){
-				if (blocks){
+			xMin = yMin = xMax = yMax = yMinRot = yMaxRot = xMaxRot = xMinRot= 0;
+			minLineY = 99999999;
+			minLineX = 99999999;
+
+			if (word->next) {
+				if (blocks) {
 					lineFinish = gTrue;
-				}else{
-	  				nodeline = xmlNewNode(NULL,(const xmlChar*)TAG_TEXT);
-	  				nodeline->type = XML_ELEMENT_NODE;
-	  				xmlAddChild(page,nodeline);	  	
-				}			
-			}else{
+				} else {
+					nodeline = xmlNewNode(NULL, (const xmlChar*)TAG_TEXT);
+					nodeline->type = XML_ELEMENT_NODE;
+					xmlAddChild(page, nodeline);
+				}
+			} else {
 				endPage = gTrue;
 			}
-      	}
-  			
-  		// IF block option is selected
-  		// IF it's the end of line or the end of page   			
-      	if ( (blocks && lineFinish) || (blocks && endPage)){
-      		// IF it's the first line
-      		if (linePreviousX == 0) {
-      			if (word->next){
-      				if ( word->next->xMin > (lineX + lineWidth) + (maxColSpacing * lineFontSize)){
-    	  				newBlock = gTrue; 				
-      				}       			}
-    			xmlAddChild(nodeblocks,nodeline);      			
-      		} 
-      		else { 
-      			if (newBlock){
-      				nodeblocks = xmlNewNode(NULL,(const xmlChar*)TAG_BLOCK);
-    				nodeblocks->type = XML_ELEMENT_NODE;
-    				xmlAddChild(page,nodeblocks);
-    				id = new GString("p");
-    				xmlNewProp(nodeblocks,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
-    				delete id;
-    				numBlock = numBlock + 1;
-    				xmlAddChild(nodeblocks,nodeline);
+		}
+
+		// IF block option is selected
+		// IF it's the end of line or the end of page   			
+		if ( (blocks && lineFinish) || (blocks && endPage)) {
+			// IF it's the first line
+			if (linePreviousX == 0) {
+				if (word->next) {
+					if (word->next->xMin > (lineX + lineWidth)
+							+ (maxColSpacing * lineFontSize)) {
+						newBlock = gTrue;
+					}
+				}
+				xmlAddChild(nodeblocks, nodeline);
+			} else {
+				if (newBlock) {
+					nodeblocks = xmlNewNode(NULL, (const xmlChar*)TAG_BLOCK);
+					nodeblocks->type = XML_ELEMENT_NODE;
+					xmlAddChild(page, nodeblocks);
+					id = new GString("p");
+					xmlNewProp(nodeblocks, (const xmlChar*)ATTR_ID,
+							(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
+					delete id;
+					numBlock = numBlock + 1;
+					xmlAddChild(nodeblocks, nodeline);
 					newBlock = gFalse;
-      			}else{   			
-      				if (((lineYmin + lineHeight) >= linePreviousYmin) 
-      				&& (fabs(lineFontSize - linePreviousFontSize) < lineFontSize * maxBlockFontSizeDelta1)
-      				&& ((lineYmin - linePreviousYmin) < (linePreviousFontSize * maxLineSpacingDelta))){    					
-      					xmlAddChild(nodeblocks,nodeline);
-      				} else {
-      					nodeblocks = xmlNewNode(NULL,(const xmlChar*)TAG_BLOCK);
-    					nodeblocks->type = XML_ELEMENT_NODE;
-    					xmlAddChild(page,nodeblocks);
-    					id = new GString("p");
-    					xmlNewProp(nodeblocks,(const xmlChar*)ATTR_ID,(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
-    					delete id;
-    					numBlock = numBlock + 1;
-    					xmlAddChild(nodeblocks,nodeline);
-      				}
-      			}
-      		}
-      		if (endPage){endPage = gFalse;}
-      		      			
-      		// We save informations about the future previous line
-      		linePreviousX = lineX;
-      		linePreviousYmin = lineYmin;
-      		linePreviousWidth = lineWidth;
-      		linePreviousHeight = lineHeight;
-      		linePreviousFontSize = lineFontSize;
-      		
-      		nodeline = xmlNewNode(NULL,(const xmlChar*)TAG_TEXT);
-	  		nodeline->type = XML_ELEMENT_NODE;
-      	}
-    } // end FOR
-  	} 
-  	free(tmp);
-  	delete word;
-  	uMap->decRefCnt();
+				} else {
+					if (((lineYmin + lineHeight) >= linePreviousYmin)
+							&& (fabs(lineFontSize - linePreviousFontSize)
+									< lineFontSize * maxBlockFontSizeDelta1)
+							&& ((lineYmin - linePreviousYmin)
+									< (linePreviousFontSize
+											* maxLineSpacingDelta))) {
+						xmlAddChild(nodeblocks, nodeline);
+					} else {
+						nodeblocks
+								= xmlNewNode(NULL, (const xmlChar*)TAG_BLOCK);
+						nodeblocks->type = XML_ELEMENT_NODE;
+						xmlAddChild(page, nodeblocks);
+						id = new GString("p");
+						xmlNewProp(nodeblocks, (const xmlChar*)ATTR_ID,
+								(const xmlChar*)buildIdBlock(num, numBlock, id)->getCString());
+						delete id;
+						numBlock = numBlock + 1;
+						xmlAddChild(nodeblocks, nodeline);
+					}
+				}
+			}
+			if (endPage) {
+				endPage = gFalse;
+			}
+
+			// We save informations about the future previous line
+			linePreviousX = lineX;
+			linePreviousYmin = lineYmin;
+			linePreviousWidth = lineWidth;
+			linePreviousHeight = lineHeight;
+			linePreviousFontSize = lineFontSize;
+
+			nodeline = xmlNewNode(NULL, (const xmlChar*)TAG_TEXT);
+			nodeline->type = XML_ELEMENT_NODE;
+		}
+	} // end FOR
+
+
+	free(tmp);
+	delete word;
+	uMap->decRefCnt();
 }
 
 void TextPage::addImageInlineNode(xmlNodePtr nodeline, xmlNodePtr nodeImageInline, char* tmp, TextWord *word){

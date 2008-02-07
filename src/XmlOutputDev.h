@@ -68,34 +68,66 @@ typedef void (*TextOutputFunc)(void *stream, char *text, int len);
  * @author Sophie Andrieu
  * @version xpdf 3.01
  */
+
 class TextFontInfo {
 public:
 
-  /** Construct a new <code>TextFontInfo</code> 
-   * @param state The state 
-   */
   TextFontInfo(GfxState *state);
-  
-  /** Destructor 
-   */
   ~TextFontInfo();
 
-  /** Match the state font with the current font
-   * @param state The state description */
   GBool matches(GfxState *state);
+
+//#if TEXTOUT_WORD_LIST
+  // Get the font name (which may be NULL).
+  GString *getFontName() { return fontName; }
+
+  // Get font descriptor flags.
+  GBool isFixedWidth() { return flags & fontFixedWidth; }
+  GBool isSerif() { return flags & fontSerif; }
+  GBool isSymbolic() { return flags & fontSymbolic; }
+  GBool isItalic() { return flags & fontItalic; }
+  GBool isBold() { return flags & fontBold; }
+//#endif
 
 private:
 
-  /** The font */
   GfxFont *gfxFont;
-  
-#if TEXTOUT_WORD_LIST
+//#if TEXTOUT_WORD_LIST
   GString *fontName;
-#endif
+  int flags;
+//#endif
 
   friend class TextWord;
   friend class TextPage;
 };
+//class TextFontInfo {
+//public:
+//
+//  /** Construct a new <code>TextFontInfo</code> 
+//   * @param state The state 
+//   */
+//  TextFontInfo(GfxState *state);
+//  
+//  /** Destructor 
+//   */
+//  ~TextFontInfo();
+//
+//  /** Match the state font with the current font
+//   * @param state The state description */
+//  GBool matches(GfxState *state);
+//
+//private:
+//
+//  /** The font */
+//  GfxFont *gfxFont;
+//  
+//#if TEXTOUT_WORD_LIST
+//  GString *fontName;
+//#endif
+//
+//  friend class TextWord;
+//  friend class TextPage;
+//};
 
 //------------------------------------------------------------------------
 // ImageInline
@@ -495,7 +527,6 @@ public:
   
   /** Add all minimum attributes to TOKEN node 
    * @param node The current TOKEN node
-   * @param tmp A variable which store the string attributs values
    * @param word The current word 
    * @param xMaxi The x value maximum coordinate of the left bottom corner word box
    * @param yMaxi The y value maximum coordinate of the left bottom corner word box
@@ -503,7 +534,7 @@ public:
    * @param yMaxRot The y value maximum coordinate of the left bottom corner word box (used for rotation 1 and 3) 
    * @param xMinRot The x value minimum coordinate of the left bottom corner word box (used for rotation 1 and 3) 
    * @param xMaxRot The x value maximum coordinate of the left bottom corner word box (used for rotation 1 and 3) */
-  void addAttributsNode(xmlNodePtr node, char* tmp, TextWord *word, double &xMaxi, double &yMaxi, double &yMinRot,double &yMaxRot, double &xMinRot, double &xMaxRot);
+  void addAttributsNode(xmlNodePtr node, TextWord *word, double &xMaxi, double &yMaxi, double &yMinRot,double &yMaxRot, double &xMinRot, double &xMaxRot);
   
   /** Add the type attribute to TOKEN node for the reading order 
    * @param node The current TOKEN node
