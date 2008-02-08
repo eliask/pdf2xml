@@ -1124,7 +1124,6 @@ void TextPage::addAttributsNodeVerbose(xmlNodePtr node, char* tmp, TextWord *wor
         	xmlNewProp(node,(const xmlChar*)ATTR_WORD_SPACE,(const xmlChar*)tmp);
         	sprintf(tmp,"%g",word->charSpace);
         	xmlNewProp(node,(const xmlChar*)ATTR_CHAR_SPACE,(const xmlChar*)tmp);
-        	xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
 }
 
 void TextPage::addAttributsNode(xmlNodePtr node, TextWord *word, double &xMaxi, double &yMaxi, double &yMinRot, double &yMaxRot, double &xMinRot, double &xMaxRot){ 	
@@ -1168,6 +1167,9 @@ void TextPage::addAttributsNode(xmlNodePtr node, TextWord *word, double &xMaxi, 
       	sprintf(tmp,ATTR_NUMFORMAT,word->yMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_Y,(const xmlChar*)tmp);
 
+      	sprintf(tmp,ATTR_NUMFORMAT,word->base);
+      	xmlNewProp(node,(const xmlChar*)ATTR_BASE,(const xmlChar*)tmp);
+      	
       	sprintf(tmp,ATTR_NUMFORMAT,word->xMax - word->xMin);
       	xmlNewProp(node,(const xmlChar*)ATTR_WIDTH,(const xmlChar*)tmp);
       	if (word->xMax > xMaxi) {xMaxi = word->xMax;}
