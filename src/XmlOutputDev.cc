@@ -1259,7 +1259,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 		numBlock = numBlock + 1;
 	} 
 	else {
-		xmlAddChild(page, nodeline);
+		if (rawWords){
+			xmlAddChild(page, nodeline);
+		}
 	}
 	
 	xMin= yMin = xMax = yMax =0;
