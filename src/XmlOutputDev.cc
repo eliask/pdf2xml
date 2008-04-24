@@ -2881,7 +2881,89 @@ void XmlOutputDev::generateOutline(GList *itemsA, PDFDoc *docA, int levelA){
       uMap->decRefCnt();
     }
 }
+int XmlOutputDev::dumpFragment(Unicode *text, int len, UnicodeMap *uMap, GString *s) {
+  char lre[8], rle[8], popdf[8], buf[8];
+  int lreLen, rleLen, popdfLen, n;
+  int nCols, i, j, k;
 
+  nCols = 0;
+ 
+  // Unicode OK
+  if (uMap->isUnicode()) {
+
+    lreLen = uMap->mapUnicode(0x202a, lre, sizeof(lre));
+    rleLen = uMap->mapUnicode(0x202b, rle, sizeof(rle));
+    popdfLen = uMap->mapUnicode(0x202c, popdf, sizeof(popdf));
+
+	// IF primary direction is Left to Right
+    if (1){ //(primaryLR) {
+
+      i = 0;
+      while (i < len) {
+		// output a left-to-right section
+		for (j = i; j < len && !unicodeTypeR(text[j]); ++j) ;
+		for (k = i; k < j; ++k) {
+	  		n = uMap->mapUnicode(text[k], buf, sizeof(buf));
+	  		s->append(buf, n);
+	  		++nCols;
+		}
+		i = j;
+		// output a right-to-left section
+		for (j = i; j < len && !unicodeTypeL(text[j]); ++j) ;
+		if (j > i) {
+	  		s->append(rle, rleLen);
+	  		for (k = j - 1; k >= i; --k) {
+	    		n = uMap->mapUnicode(text[k], buf, sizeof(buf));
+	    		s->append(buf, n);
+	    		++nCols;
+	  		}
+	  		s->append(popdf, popdfLen);
+	  		i = j;
+		}
+      }
+
+    } 
+    // ELSE primary direction is Right to Left
+    else {
+
+      	s->append(rle, rleLen);
+      	i = len - 1;
+      	while (i >= 0) {
+			// output a right-to-left section
+			for (j = i; j >= 0 && !unicodeTypeL(text[j]); --j) ;
+			for (k = i; k > j; --k) {
+	 			n = uMap->mapUnicode(text[k], buf, sizeof(buf));
+	  			s->append(buf, n);
+	  			++nCols;
+			}
+			i = j;
+			// output a left-to-right section
+			for (j = i; j >= 0 && !unicodeTypeR(text[j]); --j) ;
+			if (j < i) {
+	  			s->append(lre, lreLen);
+	  			for (k = j + 1; k <= i; ++k) {
+	    			n = uMap->mapUnicode(text[k], buf, sizeof(buf));
+	    			s->append(buf, n);
+	    			++nCols;
+	  			}
+	  			s->append(popdf, popdfLen);
+	  			i = j;
+			}
+      }
+      s->append(popdf, popdfLen);
+    }
+  }
+  // Unicode NOT OK 
+  else {
+  	for (i = 0; i < len; ++i) {
+      n = uMap->mapUnicode(text[i], buf, sizeof(buf));
+      s->append(buf, n);
+      nCols += n;
+    }
+  }
+
+  return nCols;
+}
 GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, int levelA, int idItemTocParentA) {
 	xmlNodePtr nodeTocItem = NULL;
     xmlNodePtr nodeItem = NULL;
@@ -2891,16 +2973,22 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, 
     GBool atLeastOne = gFalse;
     
     char* tmp = (char*)malloc(10*sizeof(char));
-         
-    int i, j, n;
-  	GString *title;
-  	char buf[8];
+     
+//    UnicodeMap *uMap; 
+    
+	// Get the output encoding
+  	if (!(uMapA = globalParams->getTextEncoding())) {
+    	return 0;
+  	}	
+    int i, n;
+  	GString *title;   
+//  	char buf[8];
   	  
   	nodeTocItem = xmlNewNode(NULL,(const xmlChar*)TAG_TOCITEMLIST);
  	sprintf(tmp,"%d",levelA);
  	xmlNewProp(nodeTocItem,(const xmlChar*)ATTR_LEVEL,(const xmlChar*)tmp);
 
-	if (levelA != 0 && idItemTocParentA != 0){
+	if (levelA != 0){
     	sprintf(tmp,"%d",idItemTocParentA);
 		xmlNewProp(nodeTocItem,(const xmlChar*)ATTR_ID_ITEM_PARENT,(const xmlChar*)tmp);
     }
@@ -2911,13 +2999,13 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, 
     	title = new GString();
 
     	((OutlineItem *)itemsA->get(i))->open(); // open the kids 	
+//    	for (j = 0; j < ((OutlineItem *)itemsA->get(i))->getTitleLength(); ++j) {
+//    		
+//      		n = uMapA->mapUnicode(((OutlineItem *)itemsA->get(i))->getTitle()[j], buf, sizeof(buf));
+//      		title->append(buf, n);
+//    	}
+    	dumpFragment(((OutlineItem *)itemsA->get(i))->getTitle(), ((OutlineItem *)itemsA->get(i))->getTitleLength(), uMapA, title);
     	
-    	for (j = 0; j < ((OutlineItem *)itemsA->get(i))->getTitleLength(); ++j) {
-    		
-      		n = uMapA->mapUnicode(((OutlineItem *)itemsA->get(i))->getTitle()[j], buf, sizeof(buf));
-      		title->append(buf, n);   
-    	}
-
     	LinkActionKind kind;
 
  		LinkDest *dest;
@@ -3040,8 +3128,11 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, 
 	  	// STRING node      
       	nodeString = xmlNewNode(NULL,(const xmlChar*)TAG_STRING);
       	nodeString->type = XML_ELEMENT_NODE;
+//   	  	xmlNodeSetContent(nodeString,(const xmlChar*)xmlEncodeEntitiesReentrant(nodeString->doc,(const xmlChar*)title->getCString()));
    	  	xmlNodeSetContent(nodeString,(const xmlChar*)xmlEncodeEntitiesReentrant(nodeString->doc,(const xmlChar*)title->getCString()));
-      	xmlAddChild(nodeItem,nodeString);
+
+   	  	xmlAddChild(nodeItem,nodeString);
+      	    	
 
 	  	// LINK node
       	nodeLink = xmlNewNode(NULL,(const xmlChar*)TAG_LINK);

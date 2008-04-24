@@ -927,7 +927,7 @@ public:
    * @param levelA The hierarchic level of the current items list 
    * @param idItemTocParentA The id of the parent item of the current item */
   GBool dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, int levelA, int idItemTocParentA);
-  
+  int dumpFragment(Unicode *text, int len, UnicodeMap *uMap, GString *s);
   /** Generate an XML outline file : call the dumpOutline function
    * @param itemsA The items list
    * @param docA The PDF document object
