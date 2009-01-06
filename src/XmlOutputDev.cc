@@ -11,6 +11,7 @@
 // revision (2008/02/06): HD add IMAGE/@ROTATE (SF Tracker 1885562) yes/ default = no
 // revision (2008/02/07): HD (SF Tracker 1888666 )
 // revision (2008/02/07): HD deletion of @base in verobse atribute
+// revision (2009/01/06): JLM bug 2444718  (font name encoding) fixed
 //
 //=================================================================================
 
@@ -325,7 +326,7 @@ void TextWord::addChar(GfxState *state, double x, double y,
     edge[len] = x;
     xMax = edge[len+1] = x + dx;
     break;
-case 3:
+ case 3:
     if (len == 0) {
       yMin = y;
     }
@@ -1312,18 +1313,32 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 		if (verbose) {
 			addAttributsNodeVerbose(node, tmp, word);
 		}
-
 		if (word->getFontName()) {
+			xmlChar* xcFontName;
 			// If the font name normalization option is selected
 			if (fullFontName) {
-				xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME,
-						(const xmlChar*)word->getFontName());
+			          //xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME,
+			          //(const xmlChar*)word->getFontName());
+			          //(const xmlChar*)"none1");
+			          xcFontName = (xmlChar*)word->getFontName();
 			} else {
-				xmlNewProp(
-						node,
-						(const xmlChar*)ATTR_FONT_NAME,
-						(const xmlChar*)word->normalizeFontName(word->getFontName()));
+			          xcFontName = (xmlChar*)word->normalizeFontName(word->getFontName());
+			          //xmlNewProp(
+			          //		node,
+			          //			(const xmlChar*)ATTR_FONT_NAME,
+				  //(const xmlChar*)word->normalizeFontName(word->getFontName()));
+				  //OK (const xmlChar*)"none2");
 			}
+		        //ugly code because I don't know how all these types...
+		        //convert to a Unicode*
+		        int size = xmlStrlen(xcFontName);
+   		        Unicode* uncdFontName = (Unicode *)malloc((size+1) * sizeof(Unicode));
+		        for (int i=0; i < size; i++) { uncdFontName[i] = (Unicode) xcFontName[i]; }
+			uncdFontName[size] = (Unicode)0;
+		        GString* gsFontName = new GString();
+			dumpFragment(uncdFontName, size, uMap, gsFontName);
+			xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME, (const xmlChar*)gsFontName->getCString());
+			
 		}
 
 		addAttributsNode(node, word, xMax, yMax, yMinRot, yMaxRot, xMinRot,
@@ -2980,7 +2995,7 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, 
   	if (!(uMapA = globalParams->getTextEncoding())) {
     	return 0;
   	}	
-    int i, n;
+    int i;
   	GString *title;   
 //  	char buf[8];
   	  
