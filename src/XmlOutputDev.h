@@ -30,10 +30,13 @@
 #include "OutputDev.h"
 #include "PDFDoc.h"
 #include "GfxState.h"
+#include "Link.h"
 #include "Parameters.h"
+
 
 using namespace std;
 #include <vector>
+#include <stack>
 #include <string>
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -52,6 +55,8 @@ class GString;
 class GList;
 class GfxState;
 class UnicodeMap;
+
+class XmlOutputDev;
 
 //------------------------------------------------------------------------
 
@@ -578,6 +583,10 @@ public:
    * @param state The state description */
   void restoreState(GfxState *state);
 
+  
+//  void addLink(int xMin, int yMin, int xMax, int yMax, Link *link);
+
+  
   /** Draw the image 
    * @param state The state description
    * @param ref The reference 
@@ -616,6 +625,9 @@ public:
   int getIdx(){return idx;};
 
   vector<ImageInline*> listeImageInline;
+  
+  // Get annotations array.
+//  void processLinks(XmlOutputDev *, Catalog *);
   
 private:
 
@@ -671,6 +683,8 @@ private:
    * @param id The variable which store the result to return
    * @return The id generated which is a string */
   GString* buildIdClipZone(int pageNum, int clipZoneNum, GString *id);
+  
+ 
   
   /** The numero of the current <i>PAGE</i> */
   int num;  
@@ -763,15 +777,16 @@ private:
   double lastFindYMin;
   GBool haveLastFind;
   
-  /** To know if a clip zone is opened : 3 values can be 0 for null, 1 for true and 2 for false */
-  int beginZoneClip; 
-  /** To know if a clip zone is closed : 3 values can be 0 for null, 1 for true and 2 for false */
-  int endZoneClip;
-  
   /** The id for each clip tag */
   int idClip;
-  /** The clip tag id before the current clip tag */
-  int idClipBefore;
+  /** stack for idclip */
+  stack<int> idStack; 
+  
+  /** id of the current idclip */
+  int idCur;
+  
+  Object annots;		// annotations array
+
 };
 
 //------------------------------------------------------------------------
@@ -888,6 +903,12 @@ public:
    * @param rgb The color in RGB value 
    * @return The hexadecimal value color in a string value*/
   GString *colortoString(GfxRGB rgb) const;
+ 
+//  void XmlOutputDev::add_link(double x, double y, double dx, double dy, int dest_page, int dest_x, int dest_y);
+//  void XmlOutputDev::add_link(double x, double y, double dx, double dy,GString& dest_url);
+//  virtual void processLinks (Links *, Catalog *);
+//  void processLink(Link *, Catalog *);
+
   
   /** Draw the image mask
    * @param state The state description 
@@ -934,6 +955,7 @@ public:
    * @param levelA The hierarchic level of the current items list */
   void generateOutline(GList *itemsA, PDFDoc *docA, int levelA);
 
+  
 private:
 
   /** Generate the path 
@@ -942,6 +964,9 @@ private:
    * @param gattributes Style attributes to add to the current path */
   void doPath(GfxPath *path, GfxState *state, GString* gattributes);
 
+  GfxState *curstate;
+  
+  
   /** The XML document */
   xmlDocPtr  doc;
   /** The root node */

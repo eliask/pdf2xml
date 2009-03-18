@@ -25,6 +25,7 @@
 #include <time.h>
 #include <string>
 #include <vector>
+#include <stack>
 
 #include <iostream>
 using namespace std;
@@ -476,7 +477,6 @@ const char* TextWord::normalizeFontName(char* fontName){
 	}		 	
 	position = name.find_first_of(',');
 	if (position != string::npos){
-		name = name.substr(0,position);
 	}		
 	return name.c_str();
 }
@@ -498,10 +498,10 @@ TextPage::TextPage(GBool verboseA, xmlNodePtr node, GString* dir, GString *base,
   nest = 0;
   nTinyChars = 0;
   lastCharOverlap = gFalse;
-  beginZoneClip = 0;
-  endZoneClip = 0;
   idClip = 0;
-  idClipBefore = 0;
+  stack<int> idStack;
+  idCur = 0;  
+  
   idx = 0; //EG
 
   if (nsURIA){
@@ -541,6 +541,9 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
   	indiceImage = -1;
   	idWORDBefore = -1;
 
+  	
+  	
+  	
   	page = xmlNewNode(NULL,(const xmlChar*)TAG_PAGE);
   	page->type = XML_ELEMENT_NODE;
   	if (state) {
@@ -596,9 +599,26 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
   	}
   	
   	xmlDocSetRootElement(vecdoc,vecroot);
-  
+  	
+  	// for links
+  	
   	free(tmp);
 }
+
+
+//void TextPage::processLinks(XmlOutputDev *out, Catalog *catalog) {
+//  Links *links;
+//  int i;
+//  Object *objAnnot;
+//
+//  cout << "titi" << endl;
+//  catalog->getPage(num)->getAnnots(objAnnot);
+//  links = new Links(objAnnot, catalog->getBaseURI());
+//  for (i = 0; i < links->getNumLinks(); ++i) {
+//    out->processLink(links->getLink(i), catalog);
+//  }
+//  delete links;
+//}
 
 void TextPage::configuration() {
   	if (curWord) {
@@ -1329,20 +1349,21 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				  //(const xmlChar*)word->normalizeFontName(word->getFontName()));
 				  //OK (const xmlChar*)"none2");
 			}
-		        //ugly code because I don't know how all these types...
-		        //convert to a Unicode*
-		        int size = xmlStrlen(xcFontName);
-   		        Unicode* uncdFontName = (Unicode *)malloc((size+1) * sizeof(Unicode));
-		        for (int i=0; i < size; i++) { uncdFontName[i] = (Unicode) xcFontName[i]; }
-			uncdFontName[size] = (Unicode)0;
-		        GString* gsFontName = new GString();
-			dumpFragment(uncdFontName, size, uMap, gsFontName);
-			xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME, (const xmlChar*)gsFontName->getCString());
+	        //ugly code because I don't know how all these types...
+	        //convert to a Unicode*
+	        int size = xmlStrlen(xcFontName);
+	        Unicode* uncdFontName = (Unicode *)malloc((size+1) * sizeof(Unicode));
+	        for (int i=0; i < size; i++) { uncdFontName[i] = (Unicode) xcFontName[i]; }
+	        uncdFontName[size] = (Unicode)0;
+	        GString* gsFontName = new GString();
+	        dumpFragment(uncdFontName, size, uMap, gsFontName);
+	        xmlNewProp(node, (const xmlChar*)ATTR_FONT_NAME, (const xmlChar*)gsFontName->getCString());
+	        //delete gsFontName;
+	        
 			
 		}
 
-		addAttributsNode(node, word, xMax, yMax, yMinRot, yMaxRot, xMinRot,
-				xMaxRot);
+		addAttributsNode(node, word, xMax, yMax, yMinRot, yMaxRot, xMinRot,xMaxRot);
 		addAttributTypeReadingOrder(node, tmp, word);
 
 		xmlNodeSetContent(node, (const xmlChar*)xmlEncodeEntitiesReentrant(
@@ -1954,15 +1975,13 @@ int TextPage::dumpFragment(Unicode *text, int len, UnicodeMap *uMap, GString *s)
 }
 
 void TextPage::saveState(GfxState *state) {
-	idClipBefore = idClip;
-	idClip++;
-	beginZoneClip = 1;
-	endZoneClip = 2;
+	idStack.push(idCur);
 }
 
 void TextPage::restoreState(GfxState *state) {
-	beginZoneClip = 2;
-	endZoneClip = 1;
+	
+	idCur = idStack.top();
+	idStack.pop();
 }
 
 void TextPage::doPathForClip(GfxPath *path, GfxState *state, xmlNodePtr currentNode) {
@@ -2007,19 +2026,9 @@ void TextPage::doPath(GfxPath *path, GfxState *state, GString* gattributes) {
 
   	xmlNewProp(groupNode,(const xmlChar*)ATTR_STYLE,(const xmlChar*)gattributes->getCString());
 
-  	if ((beginZoneClip==1 && endZoneClip==2) || (beginZoneClip==2 && endZoneClip==1)){
-  		if ((beginZoneClip==2 && endZoneClip==1)){
-   			GString *id;
-   			id = new GString("p");
-   			xmlNewProp(groupNode,(const xmlChar*)ATTR_CLIPZONE,(const xmlChar*)buildIdClipZone(num, idClipBefore, id)->getCString());
-   			delete id;
-  		}else{
-   			GString *id;
-   			id = new GString("p");
-   			xmlNewProp(groupNode,(const xmlChar*)ATTR_CLIPZONE,(const xmlChar*)buildIdClipZone(num, idClip, id)->getCString());
-   			delete id;
-  		}
-  	}
+   	id = new GString("p");
+   	xmlNewProp(groupNode,(const xmlChar*)ATTR_CLIPZONE,(const xmlChar*)buildIdClipZone(num, idCur, id)->getCString());
+   	delete id;
  	createPath(path, state, groupNode);
   	free(tmp);
 }
@@ -2119,15 +2128,17 @@ void TextPage::createPath(GfxPath *path, GfxState *state, xmlNodePtr groupNode){
 }
 
 void TextPage::clip(GfxState *state) {
-	idClipBefore = idClip;
 	idClip++;
+	idCur = idClip;
+	
     xmlNodePtr gnode = NULL;
   	char tmp[100];
   	double xMin = 0;
   	double yMin = 0;
   	double xMax = 0;
   	double yMax = 0;
- 
+
+  	
 	// Increment the absolute object index
 	idx++;
 
@@ -2156,18 +2167,22 @@ void TextPage::clip(GfxState *state) {
    	delete id;
 
    	doPathForClip(state->getPath(), state, gnode);
-}
+} 
 
 void TextPage::eoClip(GfxState *state) { 
-  	idClipBefore = idClip;
+  	
 	idClip++;
-  	xmlNodePtr gnode = NULL;
+	idCur = idClip;
+	
+	xmlNodePtr gnode = NULL;
   	char tmp[100];
   	double xMin = 0;
   	double yMin = 0;
   	double xMax = 0;
   	double yMax = 0;
   
+  		
+  	
 	// Increment the absolute object index
 	idx++;
 
@@ -2342,6 +2357,12 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
   
   return;
 }
+
+//void TextPage::addLink(int xMin, int yMin, int xMax, int yMax, Link *link){
+//
+//	fprintf(stderr,"link");
+//}
+
 
 // Draw the image
 void TextPage::drawImage(GfxState *state, Object *ref, Stream *str,
@@ -2542,6 +2563,9 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf, GBool physLa
   	verbose = verboseA;
   	GString *imgDirName;
   	
+  	curstate = NULL;
+  	
+  	
   	blocks = parameters->getDisplayBlocks();
   	fullFontName = parameters->getFullFontName();
   	noImageInline = parameters->getImageInline();
@@ -2662,6 +2686,7 @@ XmlOutputDev::~XmlOutputDev() {
 }
 
 void XmlOutputDev::startPage(int pageNum, GfxState *state) {
+	curstate = state;
 	if (parameters->getCutAllPages() == 1){
 		  text->startPage(pageNum, state, gFalse);
 	}
@@ -2816,6 +2841,9 @@ void XmlOutputDev::clip(GfxState *state) {
 void XmlOutputDev::eoClip(GfxState *state) {
 	text->eoClip(state);
 }
+//void XmlOutputDev::clipToStrokePath(GfxState *state) {
+//	txt->clipToStrokePath(state);
+//}
 
 void XmlOutputDev::doPath(GfxPath *path,GfxState *state,GString *gattributes) {
   if (parameters->getDisplayImage()){
@@ -2873,11 +2901,217 @@ void XmlOutputDev::drawImageMask(GfxState *state, Object *ref, Stream *str,
   	}
 }
 
+//void XmlOutputDev::processLinks(Links *links, Catalog *catalog){
+//	int i;
+//	
+//	printf("toto %d\n",links->getNumLinks());
+//	for (i = 0; i < links->getNumLinks(); ++i) {
+//		printf("\t---\n");
+//		
+//	    processLink(links->getLink(i), catalog);
+//	}
+//	printf(" end toto\n");
+//}
+
+//void XmlOutputDev::processLink(Link *link, Catalog *catalog){
+//	
+//	double x1, y1, x2, y2;
+//	int xMin, yMin, xMax, yMax, x, y;
+//	LinkAction *action;
+//	
+//	action = link->getAction();
+//	switch (action->getKind())
+//				{
+//				// destination is on the web
+//				case actionURI:
+//					{
+//						LinkURI* uri = (LinkURI*)action;
+//						if (uri->isOk())
+//						{
+//							GString* dest = uri->getURI();
+//							if (dest != NULL)
+//							{
+////								dev_output.add_link(active_rect, *dest);
+//								cout << "DEST " << dest->getCString() << endl;
+//							}
+//						}
+//						break;
+//					}
+//				}
+//
+//
+//	  
+//	printf("titi");
+//	
+//	link->getRect(&x1, &y1, &x2, &y2);
+//	  cvtUserToDev(x1, y1, &x, &y);
+//	  xMin = xMax = x;
+//	  yMin = yMax = y;
+//	  cvtUserToDev(x1, y2, &x, &y);
+//	  if (x < xMin) {
+//	    xMin = x;
+//	  } else if (x > xMax) {
+//	    xMax = x;
+//	  }
+//	  if (y < yMin) {
+//	    yMin = y;
+//	  } else if (y > yMax) {
+//	    yMax = y;
+//	  }
+//	  cvtUserToDev(x2, y1, &x, &y);
+//	  if (x < xMin) {
+//	    xMin = x;
+//	  } else if (x > xMax) {
+//	    xMax = x;
+//	  }
+//	  if (y < yMin) {
+//	    yMin = y;
+//	  } else if (y > yMax) {
+//	    yMax = y;
+//	  }
+//	  cvtUserToDev(x2, y2, &x, &y);
+//	  if (x < xMin) {
+//	    xMin = x;
+//	  } else if (x > xMax) {
+//	    xMax = x;
+//	  }
+//	  if (y < yMin) {
+//	    yMin = y;
+//	  } else if (y > yMax) {
+//	    yMax = y;
+//	  }
+//	  text->addLink(xMin, yMin, xMax, yMax, link);
+//}
+
+//}
+//void XmlOutputDev::drawLink(Link *link, Catalog *catalog){
+//	
+//	bool handled = true;
+//
+//	// border
+//	
+//	double x1,y1,x2,y2;
+//	
+//	// destination
+//	
+//	double x, y, dx, dy;
+//	
+////	Rect active_rect;
+//
+//	if (link != NULL && link->isOk())
+//
+////	if (link != NULL && link->isOk() && curstate != NULL)
+//
+//		link->getRect(&x1,&y1,&x2,&y2);
+//		
+//
+//		// active area
+//		curstate->transform(x1, y1, &x, &y);
+//		curstate->transformDelta(x2 - x1, y2 - y1, &dx, &dy);
+////		active_rect.x		= round(x);
+////		active_rect.y		= round(y);
+////		active_rect.width	= round(dx);
+////		active_rect.height	= round(dy);
+//
+//		// action
+//		LinkAction* action = link->getAction();
+//
+//		if (action != NULL && action->isOk())
+//		{
+//			switch (action->getKind())
+//			{
+//			// destination is on the web
+//			case actionURI:
+//				{
+//					LinkURI* uri = (LinkURI*)action;
+//					if (uri->isOk())
+//					{
+//						GString* dest = uri->getURI();
+//						if (dest != NULL)
+//						{
+//							add_link(x,y,dx,dy, *dest);
+//						}
+//					}
+//					break;
+//				}
+//
+//			// destination in the book
+//			case actionGoTo:
+//				{
+//					LinkGoTo* goto_link = (LinkGoTo*)action;
+//					if (goto_link->isOk())
+//					{
+//						bool newlink = false;
+//						LinkDest* link_dest = goto_link->getDest();
+//						GString*  name_dest = goto_link->getNamedDest();
+//						if (name_dest != NULL && catalog != NULL)
+//						{
+//							link_dest = catalog->findDest(name_dest);
+//							newlink   = true;
+//						}
+//						if (link_dest != NULL && link_dest->isOk())
+//						{
+//							// find the destination page number (counted from 1)
+//							int page;
+//							if (link_dest->isPageRef())
+//							{
+//								Ref pref = link_dest->getPageRef();
+//								page = catalog->findPage(pref.num, pref.gen);
+//							}
+//							else
+//								page = link_dest->getPageNum();
+//
+//							// other data depend in the link type
+//							switch (link_dest->getKind())
+//							{
+//							case destXYZ:
+//								{
+//									// find the location on the destination page
+//									if (link_dest->getChangeLeft() && link_dest->getChangeTop())
+//										// TODO FH 25/01/2006 apply transform matrix of destination page, not current page
+//										curstate->transform(link_dest->getLeft(), link_dest->getTop(), &x, &y);
+//									else
+//										handled = false; // what's this ?
+//
+//									if (handled)										
+//										add_link(x,y,dx,dy, page-1, round(x), round(y)); // page counted from 0
+//								}
+//								break;
+//
+//							// link to the page, without a specific location. PDF Data Destruction has hit again!
+//							case destFit:  case destFitH: case destFitV: case destFitR:
+//							case destFitB: case destFitBH: case destFitBV:
+//								add_link(x,y,dx,dy, page-1, 0, 0); // page counted from 0
+//								break;
+//							}
+//
+//							// must delete the link object if it comes from the catalog
+//							if (newlink)
+//								delete link_dest;
+//						}
+//					}
+//					break;
+//				}
+//
+//			case actionGoToR:
+//				{
+//					// link to an external file
+//					// nothing can be done with it here
+//					// LinkGoToR* goto_link = (LinkGoToR*)action;
+//					break;
+//				}
+//
+//			default:
+//				handled = false;
+//				break;
+//			}
+//		}
+//	}
+
 void XmlOutputDev::initOutline(int nbPage){
 	char* tmp = (char*)malloc(10*sizeof(char));
 	docOutline = xmlNewDoc((const xmlChar*)VERSION);
 	globalParams->setTextEncoding((char*)ENCODING_UTF8);
-	docOutline->encoding = xmlStrdup((const xmlChar*)ENCODING_UTF8);
 	docOutlineRoot = xmlNewNode(NULL,(const xmlChar*)TAG_TOCITEMS);
 	sprintf(tmp,"%d",nbPage);
  	xmlNewProp(docOutlineRoot,(const xmlChar*)ATTR_NB_PAGES,(const xmlChar*)tmp);
@@ -3187,3 +3421,5 @@ void XmlOutputDev::closeOutline(GString *shortFileName){
 	xmlSaveFile(shortFileName->getCString(),docOutline);
 	xmlFreeDoc(docOutline);
 }
+
+	
