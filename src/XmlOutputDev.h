@@ -1,7 +1,7 @@
 //========================================================================
 //
 // XmlOutputDev.h (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)
-// author: Hervé Déjean, Sophie Andrieu
+// author: Hervï¿½ Dï¿½jean, Sophie Andrieu
 // revision (2007/11/15): Emmanuel Giguet (handling double for image location)
 // revision (2007/11/27): Emmanuel Giguet (handling double for text location)
 // revision (2007/11/29): Emmanuel Giguet (adding a serial object id in the pdf stream)
@@ -32,6 +32,8 @@
 #include "GfxState.h"
 #include "Link.h"
 #include "Parameters.h"
+#include "Catalog.h"
+
 
 
 using namespace std;
@@ -69,7 +71,7 @@ typedef void (*TextOutputFunc)(void *stream, char *text, int len);
  * TextFontInfo class (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)<br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 04-2006
- * @author Hervé Déjean
+ * @author Hervï¿½ Dï¿½jean
  * @author Sophie Andrieu
  * @version xpdf 3.01
  */
@@ -242,7 +244,7 @@ private:
  * TextWord class (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)<br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 04-2006
- * @author Hervé Déjean
+ * @author Hervï¿½ Dï¿½jean
  * @author Sophie Andrieu 
  * @version xpdf 3.01 */
  
@@ -446,7 +448,7 @@ private:
  * TextPage class (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)<br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 04-2006
- * @author Hervé Déjean
+ * @author Hervï¿½ Dï¿½jean
  * @author Sophie Andrieu
  * @version xpdf 3.01
  */
@@ -461,7 +463,7 @@ public:
    * @param base The directory name which contain all data with the prefix 'image' : <pdfFileName>.xml_data/image 
    * @param nsURIA The namespace specified 
    */
-  TextPage(GBool verboseA, xmlNodePtr node, GString* dir, GString *base, GString *nsURIA);
+  TextPage(GBool verboseA,Catalog *catalog, xmlNodePtr node, GString* dir, GString *base, GString *nsURIA);
 
   /** Destructor */
   ~TextPage();
@@ -569,7 +571,8 @@ public:
    * In this case, the rule use is the even-odd.  
    * @param state The state description */
   void eoClip(GfxState *state);
-  
+  void clipToStrokePath(GfxState *state);
+
   /** Get the clipping box and add the CLIP tag whithin the instructions vectorials node.
    * In this case, the rule use is the nonzero winding number.  
    * @param state The state description */
@@ -699,6 +702,7 @@ private:
 
   /** The absolute object index in the stream */
   int idx;
+  Catalog *myCat;
   
   /** The id current word */
   int idWORD;
@@ -796,7 +800,7 @@ private:
  * XmlOutputDev.h (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)<br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 04-2006
- * @author Hervé Déjean
+ * @author Hervï¿½ Dï¿½jean
  * @author Sophie Andrieu
  * @version xpdf 3.01
  * @see OutputDev
@@ -819,7 +823,7 @@ public:
    * @param nsURIA The namespace URI if it specified
    * @param cmdA The command line used to execute the tool 
    */
-  XmlOutputDev(GString *fileName, GString *fileNamePdf, GBool physLayoutA, GBool verboseA, GString *nsURIA, GString *cmdA);
+  XmlOutputDev(GString *fileName, GString *fileNamePdf,Catalog *catalog, GBool physLayoutA, GBool verboseA, GString *nsURIA, GString *cmdA);
 
   /**
    *  Destructor
@@ -896,6 +900,7 @@ public:
   /** Create a clipping with even-odd rule 
    * @param state The state description */
   virtual void eoClip(GfxState *state) ;
+  virtual void clipToStrokePath(GfxState *state);
 
   GString *convtoX(unsigned int xcol) const;
   

@@ -158,5 +158,14 @@ namespace ConstantsXML
 	// Attributs for number format
 	const char *ATTR_NUMFORMAT = "%g";
 	const char *ATTR_SID = "sid";
+	
+	//PAGE BOXES
+	const char *TAG_MEDIABOX = "MEDIABOX";
+	const char *TAG_BLEEDBOX = "BLEEDBOX";
+	const char *TAG_CROPBOX = "CROPBOX";
+	const char *TAG_ARTBOX = "ARTBOX";
+	const char *TAG_TRIMBOX = "TRIMBOX";
+
+	
 }
 

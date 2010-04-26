@@ -165,6 +165,15 @@ namespace ConstantsXML
 	extern const char *ATTR_NUMFORMAT;
 	extern const char *ATTR_SID;
 	
+	
+	//PAGE BOXES
+	extern const char *TAG_MEDIABOX;
+	extern const char *TAG_BLEEDBOX;
+	extern const char *TAG_CROPBOX;
+	extern const char *TAG_ARTBOX;
+	extern const char *TAG_TRIMBOX;
+
+	
 }
 
 #endif
