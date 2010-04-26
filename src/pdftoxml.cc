@@ -94,7 +94,7 @@ static ArgDesc argDesc[] = {
    "do not include images inline in the stream"},
   {"-outline", argFlag,     &outline,  0,
    "create an outline file xml"},
-  {"-annots", argFlag,     &annots,  0,
+  {"-annotation", argFlag,     &annots,  0,
    "create an annotations file xml"},
   {"-cutPages", argFlag,     &cutPages,  0,
    "cut all pages in separately files"},
@@ -339,7 +339,7 @@ int main(int argc, char *argv[]) {
   	annotationfile->append("_");
   	annotationfile->append(NAME_ANNOT);
   	annotationfile->append(EXTENSION_XML);
-  	cmd->append("-annots ");
+  	cmd->append("-annotation ");
   }
   
   // Get page range
@@ -368,8 +368,12 @@ int main(int argc, char *argv[]) {
   }
 
   // Write xml file
-  xmlOut = new XmlOutputDev(textFileName, fileName, physLayout, verbose, nsURI, cmd);
+//  xmlOut = new XmlOutputDev(textFileName, fileName, physLayout, verbose, nsURI, cmd);
 
+//    printf("crop width: %g\n",doc->getPageCropWidth(1));
+  xmlOut = new XmlOutputDev(textFileName, fileName, doc->getCatalog(), physLayout, verbose, nsURI, cmd);
+ 
+  
   if (xmlOut->isOk()) {
   	
   	if (outline){
