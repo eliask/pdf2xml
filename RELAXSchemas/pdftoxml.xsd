@@ -12,11 +12,11 @@
 -->
 <!-- default namespace DS = "http://www.xrce.xerox.com/DS" -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-  <xs:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="xml.xsd"/>
   <!-- attribute groups -->
   <xs:attributeGroup name="a-Base">
-    <xs:attribute ref="xml:base"/>
+    <xs:attribute name="base" use="required" type="xs:anyURI"/>
   </xs:attributeGroup>
+  <!-- xml:base {xsd:anyURI}? -->
   <xs:attributeGroup name="a-Size">
     <xs:attribute name="width" use="required" type="xs:decimal"/>
     <xs:attribute name="height" use="required" type="xs:decimal"/>
@@ -35,7 +35,6 @@
         <xs:element ref="METADATA"/>
         <xs:element maxOccurs="unbounded" ref="PAGE"/>
       </xs:sequence>
-      <xs:attributeGroup ref="a-Base"/>
     </xs:complexType>
   </xs:element>
   <xs:element name="METADATA">
@@ -101,7 +100,6 @@
     </xs:attribute>
   </xs:attributeGroup>
   <xs:attributeGroup name="a-Page">
-    <xs:attributeGroup ref="a-Base"/>
     <xs:attributeGroup ref="a-Size"/>
     <xs:attribute name="number" use="required" type="xs:positiveInteger"/>
     <xs:attribute name="id" use="required">
@@ -122,6 +120,7 @@
   </xs:attributeGroup>
   <xs:group name="c-Page">
     <xs:choice>
+      <xs:element ref="c-boxes"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="IMAGE"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="VECTORIALIMAGES"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="TEXT"/>
@@ -134,9 +133,25 @@
       <xs:attributeGroup ref="a-Page"/>
     </xs:complexType>
   </xs:element>
+  <xs:attributeGroup name="a-box">
+    <xs:attribute name="x1" use="required" type="xs:string"/>
+    <xs:attribute name="y1" use="required" type="xs:string"/>
+    <xs:attribute name="x2" use="required" type="xs:string"/>
+    <xs:attribute name="y2" use="required" type="xs:string"/>
+  </xs:attributeGroup>
+  <xs:element name="c-boxes" abstract="true">
+    <xs:complexType>
+      <xs:attributeGroup ref="a-box"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="MEDIABOX" substitutionGroup="c-boxes"/>
+  <xs:element name="TRIMBOX" substitutionGroup="c-boxes"/>
+  <xs:element name="CROPBOX" substitutionGroup="c-boxes"/>
+  <xs:element name="BLEEDBOX" substitutionGroup="c-boxes"/>
+  <xs:element name="ARTBOX" substitutionGroup="c-boxes"/>
   <xs:attributeGroup name="a-Image">
     <xs:attributeGroup ref="a-Basic"/>
-    <xs:attribute name="inline" use="required">
+    <xs:attribute name="inline">
       <xs:simpleType>
         <xs:restriction base="xs:token">
           <xs:enumeration value="false"/>
@@ -148,7 +163,7 @@
     <xs:attribute name="mask">
       <xs:simpleType>
         <xs:restriction base="xs:token">
-          <xs:enumeration value="yes"/>
+          <xs:enumeration value="true"/>
         </xs:restriction>
       </xs:simpleType>
     </xs:attribute>
@@ -317,8 +332,17 @@
     </xs:attribute>
   </xs:attributeGroup>
   <xs:element name="c-Text" abstract="true">
-    <xs:complexType mixed="true">
-      <xs:attributeGroup ref="a-Token"/>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:restriction base="xs:anyType">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:minLength value="1"/>
+            </xs:restriction>
+          </xs:simpleType>
+          <xs:attributeGroup ref="a-Token"/>
+        </xs:restriction>
+      </xs:simpleContent>
     </xs:complexType>
   </xs:element>
   <xs:element name="TEXT" substitutionGroup="c-Block"/>
@@ -332,6 +356,7 @@
         </xs:restriction>
       </xs:simpleType>
     </xs:attribute>
+    <xs:attribute name="type" type="xs:integer"/>
     <xs:attributeGroup ref="a-tokenImage"/>
     <xs:attribute name="font-name" type="xs:string"/>
     <xs:attribute name="font-size" type="xs:decimal"/>
@@ -363,6 +388,7 @@
     </xs:attribute>
     <xs:attribute name="angle" type="xs:decimal"/>
   </xs:attributeGroup>
+  <!-- c-Token= xsd:string text -->
   <xs:element name="TOKEN" substitutionGroup="c-Text"/>
   <xs:attributeGroup name="a-tokenText">
     <xs:attributeGroup ref="a-Font"/>

@@ -24,6 +24,9 @@ a:cvs-header [
 a:cvs-log [
     '''
     $Log$
+    Revision 1.3  2010/04/26 09:29:41  dejean
+    ADD PAGES BOXES
+
     Revision 1.2  2008/02/06 10:48:28  dejean
     TOKEN/@type added (LR direction)
     some modif about yes, no , true, false attribute values.
@@ -135,13 +138,15 @@ a:cvs-log [
 start=Document | Page | VectorialImages 
 
 # attribute groups
-a-Base=attribute xml:base {xsd:anyURI}?
+a-Base=attribute  base {xsd:anyURI} #xml:base {xsd:anyURI}?
 a-Size = attribute width {xsd:decimal}, attribute height {xsd:decimal}
 a-Position = attribute x {xsd:decimal}, attribute y {xsd:decimal}
 a-Basic = a-Size, a-Position
 
 ## A document is composed of a Metadata and a sequence of Pages 
-Document = element DOCUMENT { a-Base, Metadata, Page+ }
+Document = element DOCUMENT {Metadata, Page+ }
+##Document = element DOCUMENT { a-Base, Metadata, Page+ }
+
 
 ## A Metadata contains a PdfFileName and a Process
 Metadata = element METADATA {PdfFileName, Process+}
@@ -171,20 +176,36 @@ sid = attribute sid { xsd:string {pattern = "p\d+_s\d+"}}
 
 ## A Page contains: images and/or text and/or vectors
 ## as a Page can be xincluded, it must accept the xml:base attribute 
+
 a-Page=
-    a-Base,
+    #a-Base,
     a-Size,
     attribute  number {xsd:positiveInteger},
     attribute id { xsd:string {pattern = "p\d+"}},
     attribute  format { "A3" | "landscape" }?
     
-c-Page=(Image* | VectorialImages* | Text* | Block*)
+c-Page=(c-boxes| Image* | VectorialImages* | Text* | Block*)
 
 Page=element PAGE {
     a-Page,
     c-Page*
     }
-    
+
+
+a-box = 
+    attribute x1 {xsd:string},
+    attribute y1 {xsd:string},
+    attribute x2 {xsd:string},
+    attribute y2 {xsd:string}
+
+c-boxes = c-mediabox | c-trimbox |c-cropbox |c-bleedbox |c-artbox
+## page boxes
+c-mediabox =  element MEDIABOX { a-box}
+c-trimbox  =  element TRIMBOX { a-box}
+c-cropbox  =  element CROPBOX { a-box}
+c-bleedbox =  element BLEEDBOX { a-box}
+c-artbox   =  element ARTBOX { a-box}
+
 ## Caracteristics about an image included in a page
 ## I had to a put an optional mask in order to validate an old "out.xml" instance
 
@@ -292,10 +313,10 @@ a-Token=
     attribute type { xsd:integer}?,
    (a-tokenImage? | a-tokenText?)
 
-c-Token=text 
+#c-Token= xsd:string text 
 Token = element TOKEN {
     a-Token,
-    c-Token
+    xsd:string {minLength="1"}
     }
     
 ## rotation attribute can have four differents values :
