@@ -120,7 +120,7 @@
   </xs:attributeGroup>
   <xs:group name="c-Page">
     <xs:choice>
-      <xs:element ref="c-boxes"/>
+      <xs:group ref="c-boxes"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="IMAGE"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="VECTORIALIMAGES"/>
       <xs:element minOccurs="0" maxOccurs="unbounded" ref="TEXT"/>
@@ -139,16 +139,40 @@
     <xs:attribute name="x2" use="required" type="xs:string"/>
     <xs:attribute name="y2" use="required" type="xs:string"/>
   </xs:attributeGroup>
-  <xs:element name="c-boxes" abstract="true">
+  <xs:group name="c-boxes">
+    <xs:sequence>
+      <xs:element ref="MEDIABOX"/>
+      <xs:element ref="CROPBOX"/>
+      <xs:element ref="BLEEDBOX"/>
+      <xs:element ref="ARTBOX"/>
+      <xs:element ref="TRIMBOX"/>
+    </xs:sequence>
+  </xs:group>
+  <xs:element name="MEDIABOX">
     <xs:complexType>
       <xs:attributeGroup ref="a-box"/>
     </xs:complexType>
   </xs:element>
-  <xs:element name="MEDIABOX" substitutionGroup="c-boxes"/>
-  <xs:element name="TRIMBOX" substitutionGroup="c-boxes"/>
-  <xs:element name="CROPBOX" substitutionGroup="c-boxes"/>
-  <xs:element name="BLEEDBOX" substitutionGroup="c-boxes"/>
-  <xs:element name="ARTBOX" substitutionGroup="c-boxes"/>
+  <xs:element name="TRIMBOX">
+    <xs:complexType>
+      <xs:attributeGroup ref="a-box"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="CROPBOX">
+    <xs:complexType>
+      <xs:attributeGroup ref="a-box"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="BLEEDBOX">
+    <xs:complexType>
+      <xs:attributeGroup ref="a-box"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="ARTBOX">
+    <xs:complexType>
+      <xs:attributeGroup ref="a-box"/>
+    </xs:complexType>
+  </xs:element>
   <xs:attributeGroup name="a-Image">
     <xs:attributeGroup ref="a-Basic"/>
     <xs:attribute name="inline">
