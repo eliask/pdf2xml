@@ -744,12 +744,34 @@ void TextPage::endPage(GString *dataDir) {
 				imageName->append("-");
 				imageName->append(GString::fromInt(num));
 				imageName->append(EXTENSION_VEC);
+				// ID: 1850760
+				GString *cp;
+				cp = refname->copy();
+				for (int i=0;i<cp->getLength();i++){
+					if (cp->getChar(i) ==' '){
+						cp->del(i);
+						cp->insert(i,"%20");
+					}
+				}
+				printf("%s\n",imageName->getCString());
 				xmlNewProp(xiinclude, (const xmlChar*)ATTR_HREF,
-						(const xmlChar*)imageName->getCString());
+						(const xmlChar*)cp->getCString());
 				delete imageName;
+				delete cp;
 			} else {
+				// ID: 1850760
+				GString *cp;
+				cp = refname->copy();
+				for (int i=0;i<cp->getLength();i++){
+					if (cp->getChar(i) ==' '){
+						cp->del(i);
+						cp->insert(i,"%20");
+					}
+				}
+//				printf("%s\n",cp->getCString());				
 				xmlNewProp(xiinclude, (const xmlChar*)ATTR_HREF,
-						(const xmlChar*)refname->getCString());
+						(const xmlChar*)cp->getCString());
+				delete cp;
 			}
 
 			if (namespaceURI) {
@@ -1119,12 +1141,15 @@ void TextPage::addChar(GfxState *state, double x, double y, double dx,
 		overlap = fabs(delta) < dupMaxPriDelta * curWord->fontSize && fabs(base
 				- curWord->base) < dupMaxSecDelta * curWord->fontSize;
 
-		int modif= 0;
+//		int modif= 0;
 //		int modifprev = 0;
 //			if ( ((curWord->text[curWord->len-1] >=688) && (curWord->text[curWord->len-1] <= 719))
 //					|| (curWord->text[curWord->len-1]>=180 && curWord->text[curWord->len-1]<=184)) {
-//				//		  printf("%u\t%f\t%f\t", u[i],x,y);
-//						  printf("-> %u \n", curWord->text[curWord->len-1]);
+//						  printf("%u\t%f\t%f\t%f", u[i],x,y,state->getFontSize());
+//		for (int q=0;q<curWord->charLen;q++){
+//			printf("%c", curWord->text[q]);
+//		}
+//		printf("%f\n",curWord->fontSize);
 //						  printf("-> %c \n", (char)curWord->text[curWord->len-1]);
 //				modifprev = 1;
 //			}
@@ -1137,9 +1162,9 @@ void TextPage::addChar(GfxState *state, double x, double y, double dx,
 //			}
 			
 				// take into account rotation angle ??
-			if ( (overlap || ((modif==0)&&fabs(base - curWord->base)) > 1 || sp
-					> minWordBreakSpace * curWord->fontSize || sp
-					< -minDupBreakOverlap * curWord->fontSize)) {
+			if ( (overlap || fabs(base - curWord->base) > 1 || 
+					sp > minWordBreakSpace * curWord->fontSize || 
+					sp < -minDupBreakOverlap * curWord->fontSize)) {
 //			if ( (overlap || ((modif==0 && modifprev == 0)&& fabs(base - curWord->base)) > 1 || ( (modif==0 && modifprev == 0) && (sp
 //				> minWordBreakSpace * curWord->fontSize)) || ( (modif==0 && modifprev == 0) &&sp
 //				< -minDupBreakOverlap * curWord->fontSize))) {
@@ -2817,6 +2842,7 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 
 	dataDir = new GString(fileName);
 	dataDir->append("_data");
+
 	imgDirName = new GString(dataDir);
 
 	// Display images
