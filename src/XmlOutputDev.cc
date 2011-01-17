@@ -1916,7 +1916,8 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 			linePreviousWidth = lineWidth;
 			linePreviousHeight = lineHeight;
 			linePreviousFontSize = lineFontSize;
-
+			minLineY = 99999999;
+			minLineX = 99999999;
 			nodeline = xmlNewNode(NULL, (const xmlChar*)TAG_TEXT);
 			nodeline->type = XML_ELEMENT_NODE;
 		}
@@ -2952,6 +2953,76 @@ XmlOutputDev::~XmlOutputDev() {
 		delete nsURI;
 	}
 }
+
+
+//static void XmlOutputDev::printInfoString(Dict *infoDict, char *key, char *text,
+//			    UnicodeMap *uMap) {
+//  Object obj;
+//  GString *s1;
+//  GBool isUnicode;
+//  Unicode u;
+//  char buf[8];
+//  int i, n;
+//
+//  if (infoDict->lookup(key, &obj)->isString()) {
+//    fputs(text, stdout);
+//    s1 = obj.getString();
+//    if ((s1->getChar(0) & 0xff) == 0xfe &&
+//	(s1->getChar(1) & 0xff) == 0xff) {
+//      isUnicode = gTrue;
+//      i = 2;
+//    } else {
+//      isUnicode = gFalse;
+//      i = 0;
+//    }
+//    while (i < obj.getString()->getLength()) {
+//      if (isUnicode) {
+//	u = ((s1->getChar(i) & 0xff) << 8) |
+//	    (s1->getChar(i+1) & 0xff);
+//	i += 2;
+//      } else {
+//	u = pdfDocEncoding[s1->getChar(i) & 0xff];
+//	++i;
+//      }
+//      n = uMap->mapUnicode(u, buf, sizeof(buf));
+//      fwrite(buf, 1, n, stdout);
+//    }
+//    fputc('\n', stdout);
+//  }
+//  obj.free();
+//}
+//
+//void XmlOutputDev::addInfo(GString *fileName,PDFDocXrce *doc){
+//	Object info;
+//	UnicodeMap *;
+//
+//	xmlNodePtr titleNode = xmlNewNode(NULL, (const xmlChar*)"TITLE");
+//	xmlNodePtr authorNode = xmlNewNode(NULL, (const xmlChar*)"AUTHOR");
+//	xmlNodePtr creationDateNode = xmlNewNode(NULL, (const xmlChar*)"CREATIONDATE");
+//
+//	uMap = globalParams->getTextEncoding()
+//	
+////	titleNode->type = XML_ELEMENT_NODE;
+//	xmlAddChild(nodeProcess, nodeVersion);
+//	xmlNewProp(nodeVersion, (const xmlChar*)ATTR_VALUE,(const xmlChar*)PDFTOXML_VERSION);
+//	
+//	infoNode = 
+//	doc->getDocInfo(&info);
+//	if (info.isDict()) {
+//
+//		xmlNodeSetContent(titleNode, (const xmlChar*)xmlEncodeEntitiesReentrant(
+//				doc, (const xmlChar*)mp->getCString()));
+//	    printInfoString(info.getDict(), "Title",        "Title:          ", uMap);
+//	    printInfoString(info.getDict(), "Subject",      "Subject:        ", uMap);
+//	    printInfoString(info.getDict(), "Keywords",     "Keywords:       ", uMap);
+//	    printInfoString(info.getDict(), "Author",       "Author:         ", uMap);
+//	    printInfoString(info.getDict(), "Creator",      "Creator:        ", uMap);
+//	    printInfoString(info.getDict(), "Producer",     "Producer:       ", uMap);
+//	    printInfoDate(info.getDict(),   "CreationDate", "CreationDate:   ");
+//	    printInfoDate(info.getDict(),   "ModDate",      "ModDate:        ");
+//	}
+//	info.free();
+//}
 
 void XmlOutputDev::startPage(int pageNum, GfxState *state) {
 	curstate = state;
