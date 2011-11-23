@@ -480,18 +480,22 @@ GString *TextWord::colortoString() const {
 }
 
 const char* TextWord::normalizeFontName(char* fontName) {
-	string name = fontName;
-
+	string name (fontName);
+ 	string name2;
+	string name3;
+	char * cstr;
+	
 	size_t position = name.find_first_of('+');
 	if (position != string::npos) {
-		name = name.substr(position+1, name.size()-1);
+		name2 = name.substr(position+1, name.size()-1);
 	}
-	position = name.find_first_of('-');
+	position = name2.find_first_of('-');
 	if (position != string::npos) {
-		name = name.substr(0, position);
+		name3 = name2.substr(0, position);
 	}
-
-	return name.c_str();
+	cstr = new char [name3.size()+1];
+	strcpy (cstr, name3.c_str());
+	return cstr; 
 }
 
 //------------------------------------------------------------------------
@@ -1220,10 +1224,6 @@ void TextPage::endWord() {
 	}
 
 	if (curWord) {
-//		for (int i=0;i<curWord->len;i++){
-//			printf("%c ", (char)curWord->text[i]);
-//		}
-//		printf("\n");
 		addWord(curWord);
 		curWord = NULL;
 		idWORD++;
@@ -2205,7 +2205,6 @@ void TextPage::doPathForClip(GfxPath *path, GfxState *state,
 
 	// Increment the absolute object index
 	idx++;
-
 	xmlNodePtr groupNode = NULL;
 
 	// GROUP tag
@@ -2225,6 +2224,8 @@ void TextPage::doPath(GfxPath *path, GfxState *state, GString* gattributes) {
 
 	// Increment the absolute object index
 	idx++;
+	//printf("path %d\n",idx);
+	if (idx>10000){return;}
 
 	xmlNodePtr groupNode = NULL;
 
@@ -2361,6 +2362,10 @@ void TextPage::clip(GfxState *state) {
 
 	// Increment the absolute object index
 	idx++;
+	//printf("clip %d\n",idx);
+	if (idx>10000){
+		return;
+	}
 
 	// CLIP tag
 	gnode = xmlNewNode(NULL, (const xmlChar*)TAG_CLIP);
@@ -3190,7 +3195,9 @@ void XmlOutputDev::eoFill(GfxState *state) {
 }
 
 void XmlOutputDev::clip(GfxState *state) {
-	text->clip(state);
+	if (parameters->getDisplayImage()) {
+		text->clip(state);
+	}
 }
 
 void XmlOutputDev::eoClip(GfxState *state) {
@@ -3252,6 +3259,7 @@ void XmlOutputDev::drawImage(GfxState *state, Object *ref, Stream *str,
 		GBool inlineImg) {
 	if (parameters->getDisplayImage()) {
 		imageIndex+=1;
+		printf("image %d %d %d\n",imageIndex,height,width);
 		text->drawImage(state, ref, str, width, height, colorMap, maskColors,
 				inlineImg, dumpJPEG, imageIndex);
 	}
@@ -3261,6 +3269,7 @@ void XmlOutputDev::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GBool invert, GBool inlineImg) {
 	if (parameters->getDisplayImage()) {
 		imageIndex +=1;
+		printf("imagemask %d %d %d\n",imageIndex,height,width);
 		text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
 				dumpJPEG, imageIndex);
 	}
