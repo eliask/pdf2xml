@@ -84,7 +84,7 @@ using namespace ConstantsXML;
 //------------------------------------------------------------------------
 
 // Inter-character space width which will cause addChar to start a new word.
-#define minWordBreakSpace 0.5
+#define minWordBreakSpace 0.1
 
 // Negative inter-character space width, i.e., overlap, which will
 // cause addChar to start a new word.
