@@ -16,6 +16,9 @@ $Id$
 $Name$
 $Locker$
 $Log$
+Revision 1.3  2012/04/25 15:06:10  dejean
+version 2.0 with xpdf3.03
+
 Revision 1.2  2007/12/14 11:01:16  dejean
 new command line
 new attributes: idx, base
@@ -49,7 +52,7 @@ namespace ConstantsUtils
 	const char *NAME_ANNOT = "annot";
 	const char *NAME_DATA_DIR = "_data";
 	
-	const char *PDFTOXML_VERSION = "1.2";
+	const char *PDFTOXML_VERSION = "2.0";
 	const char *PDFTOXML_NAME = "pdftoxml";
 
 }

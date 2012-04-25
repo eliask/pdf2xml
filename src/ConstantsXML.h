@@ -150,15 +150,21 @@ namespace ConstantsXML
 	extern const char *TAG_ANNOTATIONS;
 	extern const char *TAG_ANNOTATION;
 	extern const char *TAG_POPUP;
+	extern const char *TAG_AUTHOR;
 	extern const char *TAG_CONTENT;
+	extern const char *TAG_RICH_CONTENT;
 	extern const char *TAG_QUADPOINTS;
 	extern const char *TAG_QUADRILATERAL;
 	extern const char *TAG_POINT;
-		
+
+	extern const char *ATTR_GOTOLINK ;
+	extern const char *ATTR_URILINK ;
+	extern const char *ATTR_HIGHLIGHT ;
+	extern const char *ATTR_UNDERLINE;	
+
 	// Attributs for annotations file
 	extern const char *ATTR_SUBTYPE;
 	extern const char *ATTR_PAGENUM;
-	extern const char *ATTR_AUTHOR;
 	extern const char *ATTR_OPEN;
 
 	// Attributs for number format

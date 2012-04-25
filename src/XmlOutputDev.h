@@ -33,12 +33,13 @@
 #include "Link.h"
 #include "Parameters.h"
 #include "Catalog.h"
-
+#include "AnnotsXrce.h"
 
 
 using namespace std;
-#include <vector>
+#include <list>
 #include <stack>
+#include <vector>
 #include <string>
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -298,6 +299,11 @@ public:
    *  @param word The current word */
   double primaryDelta(TextWord *word);
 
+  /**
+   * return True if overlap with w2
+   */
+  GBool overlap(TextWord *w2);
+
   static int cmpYX(const void *p1, const void *p2);
 
   /** Get the font name of the current word
@@ -481,6 +487,8 @@ public:
   /** Configuration for the <b>start</b> of a new page */
   void configuration();
 
+  int getPageNumber() {return num;}
+
   /** Update the current font
    *  @param state The state description */
   void updateFont(GfxState *state);
@@ -586,7 +594,7 @@ public:
    * @param state The state description */
   void restoreState(GfxState *state);
 
-  
+
 //  void addLink(int xMin, int yMin, int xMax, int yMax, Link *link);
 
   
@@ -628,9 +636,6 @@ public:
   int getIdx(){return idx;};
 
   vector<ImageInline*> listeImageInline;
-  
-  // Get annotations array.
-//  void processLinks(XmlOutputDev *, Catalog *);
   
 private:
 
@@ -687,6 +692,14 @@ private:
    * @return The id generated which is a string */
   GString* buildIdClipZone(int pageNum, int clipZoneNum, GString *id);
   
+  /**
+   * test if an annotation overlaps this zone
+   * if test add the annotation subtype as attribut
+   */
+  GBool testOverlap(double x11,double y11,double x12,double y12,double x21,double y21,double x22,double y22);
+  GBool testAnnotatedText(double xMin,double yMin,double xMax,double yMax);
+  void testLinkedText(xmlNodePtr node,double xMin,double yMin,double xMax,double yMax);
+
  
   
   /** The numero of the current <i>PAGE</i> */
@@ -703,7 +716,7 @@ private:
   /** The absolute object index in the stream */
   int idx;
   Catalog *myCat;
-  
+  GfxState *curstate;
   /** The id current word */
   int idWORD;
   /** The image indice */
@@ -789,7 +802,12 @@ private:
   /** id of the current idclip */
   int idCur;
   
-  Object annots;		// annotations array
+  AnnotsXrce **annotsArray;		// annotations array
+  vector<Link*> linkList;
+
+  vector<Dict*>underlineObject;
+  vector<Dict*>highlightedObject;
+  Links *pageLinks;
 
 };
 
@@ -909,11 +927,6 @@ public:
    * @return The hexadecimal value color in a string value*/
   GString *colortoString(GfxRGB rgb) const;
  
-//  void XmlOutputDev::add_link(double x, double y, double dx, double dy, int dest_page, int dest_x, int dest_y);
-//  void XmlOutputDev::add_link(double x, double y, double dx, double dy,GString& dest_url);
-//  virtual void processLinks (Links *, Catalog *);
-//  void processLink(Link *, Catalog *);
-
   
   /** Draw the image mask
    * @param state The state description 
@@ -926,6 +939,8 @@ public:
   virtual void drawImageMask(GfxState *state, Object *ref, Stream *str,
 			      int width, int height, GBool invert, GBool inlineImg);
 			    
+
+
   /** Draw the image
    * @param state The state description 
    * @param ref The reference 
@@ -952,7 +967,7 @@ public:
    * @param uMapA The unicode map
    * @param levelA The hierarchic level of the current items list 
    * @param idItemTocParentA The id of the parent item of the current item */
-  GBool dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, int levelA, int idItemTocParentA);
+  GBool dumpOutline(xmlNodePtr parentNode,GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA, int levelA, int idItemTocParentA);
   int dumpFragment(Unicode *text, int len, UnicodeMap *uMap, GString *s);
   /** Generate an XML outline file : call the dumpOutline function
    * @param itemsA The items list
@@ -960,7 +975,7 @@ public:
    * @param levelA The hierarchic level of the current items list */
   void generateOutline(GList *itemsA, PDFDoc *docA, int levelA);
 
-  
+  xmlNodePtr getDocRoot(){return docroot;}
 private:
 
   /** Generate the path 
@@ -969,7 +984,8 @@ private:
    * @param gattributes Style attributes to add to the current path */
   void doPath(GfxPath *path, GfxState *state, GString* gattributes);
 
-  GfxState *curstate;
+  double curstate[6];
+  //double *curstate[1000];
   
   
   /** The XML document */
@@ -982,6 +998,9 @@ private:
   /** The root outline node */
   xmlNodePtr docOutlineRoot;
   
+  Catalog *myCatalog;
+
+
   /** The XML document for vectorials instructions */
   xmlDocPtr  vecdoc;
   /** The root vectorials instructions node */  
@@ -1022,8 +1041,10 @@ private:
   /** The index for eahc image */
   int imageIndex;
   /** The item id for each toc items */
-  int idItemToc; 
+  int idItemToc;
+
  
 };
 
 #endif
+

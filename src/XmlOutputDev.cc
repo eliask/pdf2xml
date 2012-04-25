@@ -1,7 +1,7 @@
 //=================================================================================
 //
 // XmlOutputDev.cc (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)
-// author: Herv� D�jean, Sophie Andrieu
+// author: Hervé Déjean, Sophie Andrieu
 // 04-2006
 // copyright Xerox Research Centre Europe 2006
 // revision (2007/11/15): Emmanuel Giguet (handling double for image location)
@@ -24,6 +24,7 @@
 #include <libxml/parser.h>
 #include <time.h>
 #include <string>
+#include <list>
 #include <vector>
 #include <stack>
 
@@ -35,6 +36,8 @@ using namespace ConstantsUtils;
 
 #include "ConstantsXML.h"
 using namespace ConstantsXML;
+#include "AnnotsXrce.h"
+
 
 #include <stdio.h>
 #include <stddef.h>
@@ -81,7 +84,7 @@ using namespace ConstantsXML;
 //------------------------------------------------------------------------
 
 // Inter-character space width which will cause addChar to start a new word.
-#define minWordBreakSpace 0.1
+#define minWordBreakSpace 0.5
 
 // Negative inter-character space width, i.e., overlap, which will
 // cause addChar to start a new word.
@@ -125,7 +128,8 @@ using namespace ConstantsXML;
 TextFontInfo::TextFontInfo(GfxState *state) {
 	gfxFont = state->getFont();
 	//#if TEXTOUT_WORD_LIST
-	fontName = (gfxFont && gfxFont->getOrigName()) ? gfxFont->getOrigName()->copy() : (GString *)NULL;
+	//fontName = (gfxFont && gfxFont->getOrigName()) ? gfxFont->getOrigName()->copy() : (GString *)NULL;
+	fontName = (gfxFont && gfxFont->getName()) ? gfxFont->getName()->copy() : (GString *)NULL;
 	//#endif
 }
 
@@ -430,6 +434,11 @@ double TextWord::primaryDelta(TextWord *word) {
 	return delta;
 }
 
+GBool TextWord::overlap(TextWord *w2){
+
+	return gFalse;
+}
+
 int TextWord::cmpYX(const void *p1, const void *p2) {
 	TextWord *word1 = *(TextWord **)p1;
 	TextWord *word2 = *(TextWord **)p2;
@@ -480,22 +489,30 @@ GString *TextWord::colortoString() const {
 }
 
 const char* TextWord::normalizeFontName(char* fontName) {
-	string name (fontName);
- 	string name2;
-	string name3;
-	char * cstr;
-	
-	size_t position = name.find_first_of('+');
-	if (position != string::npos) {
-		name2 = name.substr(position+1, name.size()-1);
-	}
-	position = name2.find_first_of('-');
-	if (position != string::npos) {
-		name3 = name2.substr(0, position);
-	}
-	cstr = new char [name3.size()+1];
-	strcpy (cstr, name3.c_str());
-	return cstr; 
+        string name (fontName);
+        string name2;
+        string name3;
+        char * cstr;
+
+        size_t position = name.find_first_of('+');
+        if (position != string::npos) {
+                name2 = name.substr(position+1, name.size()-1);
+        }
+        else{
+        	name2 = fontName;
+        }
+        position = name2.find_first_of('-');
+        if (position != string::npos) {
+                name3 = name2.substr(0, position);
+        }
+        else{
+        	name3 =name2;
+        }
+        cstr = new char [name3.size()+1];
+        strcpy (cstr, name3.c_str());
+//        printf("\t%s\t%s\n",fontName,cstr);
+        return cstr;
+
 }
 
 //------------------------------------------------------------------------
@@ -519,7 +536,7 @@ TextPage::TextPage(GBool verboseA, Catalog *catalog, xmlNodePtr node,
 	idClip = 0;
 	stack<int> idStack;
 	idCur = 0;
-
+	curstate = NULL;
 	myCat = catalog;
 
 	idx = 0; //EG
@@ -568,15 +585,6 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
 	PDFRectangle *artBox = myCat->getPage(pageNum)->getArtBox();
 
 
-//	    printf("%g\t%g\t%g\t%g\n" ,mediaBox->x1,mediaBox->x2,mediaBox->y1,mediaBox->y2);
-//	    printf("%g\t%g\t%g\t%g\n" ,cropBox->x1,cropBox->x2,cropBox->y1,cropBox->y2);
-//	    printf("%g\t%g\t%g\t%g\n" ,trimBox->x1,trimBox->x2,trimBox->y1,trimBox->y2);
-//	    printf("%g\t%g\t%g\t%g\n" ,bleedBox->x1,bleedBox->x2,bleedBox->y1,bleedBox->y2);
-
-//	    printf("cat ok? %d\n", myCat->isOk());
-//	    double cr = myCat->getPage(pageNum)->getCropWidth();
-//	    printf("%g:%g\n" ,cr,myCat->getPage(pageNum)->getMediaWidth());
-
 	page = xmlNewNode(NULL, (const xmlChar*)TAG_PAGE);
 	page->type = XML_ELEMENT_NODE;
 	if (state) {
@@ -585,6 +593,7 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
 	} else {
 		pageWidth = pageHeight = 0;
 	}
+	curstate=state;
 
 	tmp = (char*)malloc(20*sizeof(char));
 	sprintf(tmp, "%g", pageWidth);
@@ -702,9 +711,51 @@ void TextPage::startPage(int pageNum, GfxState *state, GBool cut) {
 	xmlDocSetRootElement(vecdoc, vecroot);
 
 	// for links
+	//  store them in a list
+	//  and when dump: for each token look at intersectionwith
+	Page *currentPage;
+  	Object objAnnot;
+  	double ctm[6];
+  	Object kid;
+  	Object objSubtype;
+
+  	int i;
+  	for (i = 0; i < 6; ++i) {
+  		ctm[i] = state->getCTM()[i];
+  	}
+
+//  	printf("start annotations\n");
+	currentPage = myCat->getPage(num);
+	currentPage->getAnnots(&objAnnot);
+	//pageLinks = currentPage->getLinks(myCat);
+	pageLinks = currentPage->getLinks();
+
+	// Annotation's objects list
+	if (objAnnot.isArray()){
+	  	for (int i = 0 ; i < objAnnot.arrayGetLength() ; ++i){
+	  		objAnnot.arrayGet(i, &kid);
+	  		if (kid.isDict()) {
+	  			Dict *dict;
+	  			dict = kid.getDict();
+				// Get the annotation's type
+	  			if (dict->lookup("Subtype", &objSubtype)->isName()){
+	  				// It can be 'Highlight' or 'Underline' or 'Link' (Subtype 'Squiggly' or 'StrikeOut' are not supported)
+	  				if (!strcmp(objSubtype.getName(), "Highlight")){
+	  					highlightedObject.push_back(dict);
+	  				}
+  					if(!strcmp(objSubtype.getName(), "Underline")){
+	  					underlineObject.push_back(dict);
+	  				}
+	  			}
+	  			objSubtype.free();
+	  		}
+	  	}
+	}
+	objAnnot.free();
 
 	free(tmp);
 }
+
 
 void TextPage::configuration() {
 	if (curWord) {
@@ -715,6 +766,8 @@ void TextPage::configuration() {
 		primaryLR = gTrue;
 	}
 }
+
+
 
 void TextPage::endPage(GString *dataDir) {
 	if (curWord) {
@@ -789,12 +842,13 @@ void TextPage::endPage(GString *dataDir) {
 
 		// Save the file for example with relname 'p_06.xml_data/image-27.vec'
 		if (!xmlSaveFile(relname->getCString(), vecdoc)) {
-			error(-1, "Couldn't open file '%s'", relname->getCString());
+			//error(errIO,-1, "Couldn't open file '%s'", relname->getCString());
 		}
 
 		delete refname;
 		delete relname;
 	}
+	xmlFreeDoc(vecdoc);
 
 	// IF cutter is ok we build the file name for all pages separately  
 	// and save all files in the data directory
@@ -806,7 +860,8 @@ void TextPage::endPage(GString *dataDir) {
 		pageFile->append(EXTENSION_XML);
 
 		if (!xmlSaveFile(pageFile->getCString(), docPage)) {
-			error(-1, "Couldn't open file '%s'", pageFile->getCString());
+			
+		//	error(-1, "Couldn't open file '%s'", pageFile->getCString());
 		}
 
 		// Add in the principal file XML all pages as a tag xi:include
@@ -828,6 +883,8 @@ void TextPage::endPage(GString *dataDir) {
 		}
 		delete pageFile;
 	}
+	highlightedObject.clear();
+	underlineObject.clear();
 }
 
 void TextPage::clear() {
@@ -1060,14 +1117,14 @@ void TextPage::addChar(GfxState *state, double x, double y, double dx,
 	state->transform(x, y, &x1, &y1);
 	if (x1 < 0 || x1 > pageWidth ||
       y1 < 0 || y1 > pageHeight)
-{
-    charPos += nBytes;
-    endWord();
-    return;
-  }
+	{
+		charPos += nBytes;
+		endWord();
+		return;
+	}
 
   // subtract char and word spacing from the dx,dy values // HD why ??
-  		sp = state->getCharSpace();
+  	sp = state->getCharSpace();
 	if (c == (CharCode)0x20) {
 		sp += state->getWordSpace();
 	}
@@ -1093,14 +1150,6 @@ void TextPage::addChar(GfxState *state, double x, double y, double dx,
 		endWord();
 		return;
 	}
-
-	//  // HD : control characters: does not work with reflex2003.pdf
-	//  if (uLen == 1 &&  c> (CharCode)0x00 && c <= (CharCode)0x20) {
-	//    ++curWord->charLen;
-	//    ++charPos;
-	//    endWord();
-	//    return;
-	//  	}
 
 
 	if (!curWord) {
@@ -1145,33 +1194,10 @@ void TextPage::addChar(GfxState *state, double x, double y, double dx,
 		overlap = fabs(delta) < dupMaxPriDelta * curWord->fontSize && fabs(base
 				- curWord->base) < dupMaxSecDelta * curWord->fontSize;
 
-//		int modif= 0;
-//		int modifprev = 0;
-//			if ( ((curWord->text[curWord->len-1] >=688) && (curWord->text[curWord->len-1] <= 719))
-//					|| (curWord->text[curWord->len-1]>=180 && curWord->text[curWord->len-1]<=184)) {
-//						  printf("%u\t%f\t%f\t%f", u[i],x,y,state->getFontSize());
-//		for (int q=0;q<curWord->charLen;q++){
-//			printf("%c", curWord->text[q]);
-//		}
-//		printf("%f\n",curWord->fontSize);
-//						  printf("-> %c \n", (char)curWord->text[curWord->len-1]);
-//				modifprev = 1;
-//			}
-//			if ( ((u[0] >=688) && (u[0] <= 719))
-//					|| (u[0]>=180 && u[0]<=184)) {
-//				//		  printf("%u\t%f\t%f\t", u[i],x,y);
-//						  printf("-> %u \n", curWord->text[curWord->len-1]);
-//						  printf("-> %c \n", (char)curWord->text[curWord->len-1]);
-//				modif = 1;
-//			}
-			
 				// take into account rotation angle ??
-			if ( (overlap || fabs(base - curWord->base) > 1 || 
+		if ( (overlap || fabs(base - curWord->base) > 1 ||
 					sp > minWordBreakSpace * curWord->fontSize || 
 					sp < -minDupBreakOverlap * curWord->fontSize)) {
-//			if ( (overlap || ((modif==0 && modifprev == 0)&& fabs(base - curWord->base)) > 1 || ( (modif==0 && modifprev == 0) && (sp
-//				> minWordBreakSpace * curWord->fontSize)) || ( (modif==0 && modifprev == 0) &&sp
-//				< -minDupBreakOverlap * curWord->fontSize))) {
 			endWord();
 			beginWord(state, x, y);
 		}
@@ -1367,6 +1393,182 @@ void TextPage::addAttributsNode(xmlNodePtr node, TextWord *word, double &xMaxi,
 
 	free(tmp);
 }
+void TextPage::testLinkedText(xmlNodePtr node,double xMin,double yMin,double xMax,double yMax){
+	/*
+	 * first test if overlap
+	 * then create stuff for ml node:
+	 * if uri:  ad @href= value
+	 * if goto:  add @hlink = ...??what !! = page and position values
+	 */
+	GString idvalue = new GString("X");
+	Link *link;
+	LinkAction* action;
+
+	char* tmp;
+	tmp=(char*)malloc(50*sizeof(char));
+
+	for (int j=0;j<pageLinks->getNumLinks();++j){
+//		printf("link num:%d\n",j);
+		//get rectangle
+		link = pageLinks->getLink(j);
+		if (link->isOk()){
+			GBool isOverlap;
+			double x1,y1,x2,y2;
+			double xa1,xa2,ya1,ya2;
+			double tmpx;
+			action = link->getAction();
+			if (action->isOk()){
+				link->getRect(&x1,&y1,&x2,&y2);
+				curstate->transform(x1,y1,&xa1,&ya1);
+				curstate->transform(x2,y2,&xa2,&ya2);
+				tmpx=ya1;
+				ya1=min(ya1,ya2);
+				ya2=max(tmpx,ya2);
+		//		printf("link %d %g %g %g %g\n",action->getKind(),xa1,ya1,xa2,ya2);
+				isOverlap = testOverlap(xa1,ya1,xa2,ya2,xMin,yMin,xMax,yMax);
+				// test overlap
+				if (isOverlap){
+					switch (action->getKind()){
+						case actionURI:{
+							LinkURI* uri = (LinkURI*)action;
+							if (uri->isOk())
+							{
+								GString* dest = uri->getURI();
+								if (dest != NULL)
+								{
+									xmlNewProp(node, (const xmlChar*)ATTR_URILINK,(const xmlChar*)dest->getCString());
+									return;
+								}
+							}
+							break;
+						}
+						case actionGoTo:{
+							LinkGoTo* goto_link = (LinkGoTo*)action;
+							if (goto_link->isOk())
+							{
+								bool newlink = false;
+								LinkDest* link_dest = goto_link->getDest();
+								GString*  name_dest = goto_link->getNamedDest();
+								if (name_dest != NULL && myCat != NULL)
+								{
+									link_dest = myCat->findDest(name_dest);
+									newlink   = true;
+								}
+								if (link_dest != NULL && link_dest->isOk())
+								{
+									// find the destination page number (counted from 1)
+									int page;
+									if (link_dest->isPageRef())
+									{
+										Ref pref = link_dest->getPageRef();
+										page = myCat->findPage(pref.num, pref.gen);
+									}
+									else
+										page = link_dest->getPageNum();
+
+									// other data depend in the link type
+									switch (link_dest->getKind())
+									{
+									case destXYZ:
+										{
+											// find the location on the destination page
+											//if (link_dest->getChangeLeft() && link_dest->getChangeTop()){
+												// TODO FH 25/01/2006 apply transform matrix of destination page, not current page
+												double x,y;
+												curstate->transform(link_dest->getLeft(), link_dest->getTop(), &x, &y);
+												sprintf(tmp,"p-%d %g %g",page,x,y);
+												xmlNewProp(node, (const xmlChar*)ATTR_GOTOLINK,(const xmlChar*)tmp);
+//												printf("link %d %g %g\n",page,x,y);
+												return;
+											//}
+										}
+										break;
+
+									// link to the page, without a specific location. PDF Data Destruction has hit again!
+									case destFit:  case destFitH: case destFitV: case destFitR:
+									case destFitB: case destFitBH: case destFitBV:
+										sprintf(tmp,"p-%d",page);
+										xmlNewProp(node, (const xmlChar*)ATTR_GOTOLINK,(const xmlChar*)tmp);
+										return;
+									}
+
+									// must delete the link object if it comes from the catalog
+									if (newlink)
+										delete link_dest;
+								}
+							}
+							break;
+//							//pagenum
+//							sprintf(tmp, "p-%d ",
+//													num]->getXPositionImage());
+//							//zone x1,x1,h,w
+//							//sprintf()
+//							xmlNewProp(node, (const xmlChar*)ATTR_LINKREF,(const xmlChar*)tmp);
+						}
+					}//switch
+				}
+			} //action isOk
+		} // link isOk
+	}
+
+}
+
+
+GBool TextPage::testOverlap(double x11,double y11,double x12,double y12,double x21,double y21,double x22,double y22){
+	return ( (min(x12,x22) >= max(x11,x21)) &&
+			 (min(y12,y22) >= max(y11,y21)) );
+}
+GBool TextPage::testAnnotatedText(double xMin,double yMin,double xMax,double yMax){
+  	Object objQuadPoints;
+  	Dict *dict;
+
+  	int nb = highlightedObject.size();
+  	for (int i=0; i<nb; i++) {
+  		dict = highlightedObject[i];
+		// Get the localization (points series) of the annotation into the page
+		if ((*dict).lookup("QuadPoints", &objQuadPoints)->isArray()){
+			Object point;
+			double xmax2=0;
+			double ymax2=0;
+			double xmin2=0;
+			double ymin2=0;
+			double x,y,x1,y1;
+			for (int i = 0 ; i < objQuadPoints.arrayGetLength() ; ++i){
+				objQuadPoints.arrayGet(i, &point);
+				if (i%2==0){
+					//even = x
+					if (point.isReal()) {
+						x = point.getReal();
+					}
+				}else{
+					//odd= y
+
+					if (point.isReal()) {
+						y = point.getReal();
+
+						curstate->transform(x,y,&x1,&y1);
+//						printf("POINT : %g %g\t %g %g\n",x,y,x1,y1);
+						if (xmin2 ==0){xmin2=x1;}
+						else{xmin2=min(xmin2,x1);}
+						xmax2=max(xmax2,x1);
+
+						if (ymin2 ==0){ymin2=y1;}
+						else{ymin2=min(ymin2,y1);}
+						ymax2=max(ymax2,y1);
+					}
+				}
+				point.free();
+
+			}
+			if ( (min(xMax,xmax2) >= max(xMin,xmin2)) && (min(yMax,ymax2) >= max(yMin,ymin2)) ){
+				return gTrue;
+			}
+		}
+		objQuadPoints.free();
+
+	}
+  	return gFalse;
+}
 
 void TextPage::dump(GBool blocks, GBool fullFontName) {
 	UnicodeMap *uMap;
@@ -1487,8 +1689,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 		numToken = numToken + 1;
 
 		stringTemp = new GString();
-
+		testLinkedText(node,word->xMin,word->yMin,word->xMax,word->yMax);
 		dumpFragment(word->text, word->len, uMap, stringTemp);
+//		printf("%s\n",stringTemp->getCString());
 
 		if (word->fontSize > lineFontSize) {
 			lineFontSize = word->fontSize;
@@ -1541,6 +1744,8 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				node->doc, (const xmlChar*)stringTemp->getCString()));
 
 		delete stringTemp;
+
+		/// annotations: higlighted, underline,
 
 		double xxMin, xxMax, xxMinNext;
 		double yyMin, yyMax, yyMinNext;
@@ -1660,19 +1865,22 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 		}
 
 		// Add the attributes width and height to the node TEXT
-		// The line is finish IF :
+		// The line is finished IF :
+
 		// 		- there is no next word 
-		//		- or IF the rotation of current word is different of the rotation next word
-		//		- or IF the difference between the base of current word and the yMin next word is superior to the maxSpacingWordsBetweenTwoLines
-		//		- or IF the difference between the base of current word and the base next word is superior to maxIntraLineDelta * lineFontSize
-		//		- or IF the xMax current word ++ maxWordSpacing * lineFontSize is superior to the xMin next word.
+		//		- and IF the rotation of current word is different of the rotation next word
+		//		- and IF the difference between the base of current word and the yMin next word is superior to the maxSpacingWordsBetweenTwoLines
+		//		-      or IF the difference between the base of current word and the base next word is superior to maxIntraLineDelta * lineFontSize
+		//		- and IF the xMax current word ++ maxWordSpacing * lineFontSize is superior to the xMin next word.
 		//		HD 24/07/09 ?? - or if the font size of the current word is far different from the next word
-		if (word->next && (word->rot==word->next->rot) && (( (fabs(word->base
-				- word->next->baseYmin) < maxSpacingWordsBetweenTwoLines)
-				|| (fabs(word->next->base - word->base)
-						< maxIntraLineDelta * lineFontSize) )
-				&& (word->next->xMin <= word->xMax
-						+ maxWordSpacing * lineFontSize) )) {
+		if (word->next && (word->rot==word->next->rot) && (
+				(
+				 (fabs(word->base - word->next->baseYmin) < maxSpacingWordsBetweenTwoLines) ||
+				 (fabs(word->next->base - word->base) < maxIntraLineDelta * min(lineFontSize,word->next->fontSize) )
+				  )
+				&& (word->next->xMin <= word->xMax + maxWordSpacing * lineFontSize)
+				)
+			) {
 
 			// IF - switch the rotation : 
 			//			base word and yMin word are inferior to yMin next word
@@ -1751,6 +1959,10 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				delete id;
 				numText = numText + 1;
 
+				//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
+				if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+					xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+				}
 				if (word->fontSize > lineFontSize) {
 					lineFontSize = word->fontSize;
 				}
@@ -1831,6 +2043,11 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 					(const xmlChar*)buildIdText(num, numText, id)->getCString());
 			delete id;
 			numText = numText + 1;
+
+			//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
+			if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+				xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+			}
 
 			sprintf(tmp, ATTR_NUMFORMAT, minLineX);
 			xmlNewProp(nodeline, (const xmlChar*)ATTR_X, (const xmlChar*)tmp);
@@ -1927,6 +2144,8 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 	free(tmp);
 	delete word;
 	uMap->decRefCnt();
+
+
 }
 
 void TextPage::addImageInlineNode(xmlNodePtr nodeline,
@@ -2495,7 +2714,8 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 	FILE *f;
 	int c;
 	int size;
-
+	GString *id;
+	
 	double x0, y0; // top left corner of image
 	double w0, h0, w1, h1; // size of image
 	double xt, yt, wt, ht;
@@ -2538,16 +2758,16 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		yFlip = ht > 0;
 	}
 
+	
+
+	// HREF
 	GString *relname = new GString(RelfileName);
 	relname->append("-");
 	relname->append(GString::fromInt(imageIndex));
-
 	GString *refname = new GString(ImgfileName);
 	refname->append("-");
 	refname->append(GString::fromInt(imageIndex));
-
-	// HREF
-	if (dumpJPEG && str->getKind() == strDCT && !inlineImg) {
+	if(dumpJPEG && str->getKind() == strDCT && !inlineImg) {
 		relname->append(".jpg");
 		refname->append(".jpg");
 		// initialize stream
@@ -2566,7 +2786,7 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		refname->append(".pbm");
 
 		if (!(f = fopen(relname->getCString(), "wb"))) {
-			error(-1, "Couldn't open image file '%s'", relname->getCString());
+			//error(-1, "Couldn't open image file '%s'", relname->getCString());
 			return;
 		}
 		fprintf(f, "P4\n");
@@ -2606,19 +2826,12 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		xmlNewProp(node, (const xmlChar*)ATTR_WIDTH, (const xmlChar*)tmp);
 		sprintf(tmp, ATTR_NUMFORMAT, h0);
 		xmlNewProp(node, (const xmlChar*)ATTR_HEIGHT, (const xmlChar*)tmp);
-		//	if (rotate){
-		//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sTRUE);
-		//	}
-		//	else{
-		//		xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sFALSE);
-		//	}
-		//  
 		if (inlineImg) {
 			xmlNewProp(node, (const xmlChar*)ATTR_INLINE, (const xmlChar*)sTRUE);
 		}
 		xmlNewProp(node, (const xmlChar*)ATTR_MASK, (const xmlChar*)sTRUE);
 		xmlNewProp(node, (const xmlChar*)ATTR_HREF,
-				(const xmlChar*)refname->getCString());
+					(const xmlChar*)refname->getCString());
 		xmlAddChild(page, node);
 	}
 
@@ -2626,10 +2839,13 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname, getIdx()));
 	}
 
+	id = new GString("p");
+	xmlNewProp(node, (const xmlChar*)ATTR_CLIPZONE,
+			(const xmlChar*)buildIdClipZone(num, idCur, id)->getCString());
+	delete id;
 	//  free(tmp);
 	return;
 }
-
 // Draw the image
 void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 		int height, GfxImageColorMap *colorMap, int *maskColors,
@@ -2646,7 +2862,8 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 	double xt, yt, wt, ht;
 	GBool rotate, xFlip, yFlip;
 	int x, y;
-
+	GString *id;
+	
 	xmlNodePtr node = NULL;
 
 	char tmp[10];
@@ -2699,7 +2916,7 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 		refname->append(".jpg");
 		relname->append(".jpg");
 		if (!(f = fopen(relname->getCString(), "wb"))) {
-			error(-1, "Couldn't open image file '%s'", relname->getCString());
+			//error(-1, "Couldn't open image file '%s'", relname->getCString());
 			return;
 		}
 
@@ -2719,7 +2936,7 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 
 		// open the image file and write the PBM header
 		if (!(f = fopen(relname->getCString(), "wb"))) {
-			error(-1, "Couldn't open image file '%s'", relname->getCString());
+			//error(-1, "Couldn't open image file '%s'", relname->getCString());
 			return;
 		}
 		fprintf(f, "P4\n");
@@ -2740,7 +2957,7 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 		refname->append(".ppm");
 		relname->append(".ppm");
 		if (!(f = fopen(relname->getCString(), "wb"))) {
-			error(-1, "Couldn't open image file '%s'", relname->getCString());
+			//error(-1, (char*)"Couldn't open image file '%s'", relname->getCString());
 			return;
 		}
 		fprintf(f, "P6\n");
@@ -2805,9 +3022,15 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 	if (inlineImg && !parameters->getImageInline()) {
 		listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname, getIdx()));
 	}
-	//  free(tmp);
+	
+	id = new GString("p");
+	xmlNewProp(node, (const xmlChar*)ATTR_CLIPZONE,
+			(const xmlChar*)buildIdClipZone(num, idCur, id)->getCString());
+	delete id;
+	
 	return;
 }
+
 
 //------------------------------------------------------------------------
 // XmlOutputDev
@@ -2828,9 +3051,10 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 	GString *imgDirName;
 	Catalog *myCatalog;
 
-	myCatalog = catalog;
+	//curstate=(double*)malloc(10000*sizeof(6*double));
 
-	curstate = NULL;
+	myCatalog = catalog;
+	UnicodeMap *uMap;
 
 	blocks = parameters->getDisplayBlocks();
 	fullFontName = parameters->getFullFontName();
@@ -2899,10 +3123,16 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 			(const xmlChar*)TAG_PDFFILENAME);
 	nodeNameFilePdf->type = XML_ELEMENT_NODE;
 
+	if (!(uMap = globalParams->getTextEncoding())) {
+		return;
+	}		
+	GString *title;
+	title = new GString();
+	dumpFragment((Unicode*)fileNamePDF, fileNamePDF->getLength(), uMap, title);
 	xmlAddChild(nodeMetadata, nodeNameFilePdf);
 	xmlNodeSetContent(nodeNameFilePdf,
 			(const xmlChar*)xmlEncodeEntitiesReentrant(nodeNameFilePdf->doc,
-					(const xmlChar*)fileNamePDF->getCString()));
+					(const xmlChar*)title->getCString()));
 
 	xmlNodePtr nodeProcess = xmlNewNode(NULL, (const xmlChar*)TAG_PROCESS);
 	nodeProcess->type = XML_ELEMENT_NODE;
@@ -3030,21 +3260,30 @@ XmlOutputDev::~XmlOutputDev() {
 //}
 
 void XmlOutputDev::startPage(int pageNum, GfxState *state) {
-	curstate = state;
+	//curstate = (double*)malloc(6*sizeof(double));
+	for (int i=0;i<6;++i){
+		curstate[i]=state->getCTM()[i];
+	}
 	if (parameters->getCutAllPages() == 1) {
 		text->startPage(pageNum, state, gFalse);
+
 	}
 	if (parameters->getCutAllPages() == 0) {
 		text->startPage(pageNum, state, gTrue);
 	}
+
 }
 
+
 void XmlOutputDev::endPage() {
+
 	text->configuration();
 	if (parameters->getDisplayText()) {
 		text->dump(blocks, fullFontName);
 	}
+
 	text->endPage(dataDir);
+
 }
 
 void XmlOutputDev::updateFont(GfxState *state) {
@@ -3254,24 +3493,30 @@ GString *XmlOutputDev::convtoX(unsigned int xcol) const {
 	return xret;
 }
 
+
+
+
 void XmlOutputDev::drawImage(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GfxImageColorMap *colorMap, int *maskColors,
 		GBool inlineImg) {
 	if (parameters->getDisplayImage()) {
-		imageIndex+=1;
-		printf("image %d %d %d\n",imageIndex,height,width);
-		text->drawImage(state, ref, str, width, height, colorMap, maskColors,
-				inlineImg, dumpJPEG, imageIndex);
+		//HD : in order to avoid millions of small (pixel) images
+		if (height > 8 and width > 8 and imageIndex <1000){
+			imageIndex+=1;
+			text->drawImage(state, ref, str, width, height, colorMap, maskColors,inlineImg, dumpJPEG, imageIndex);
+		}
 	}
 }
 
 void XmlOutputDev::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GBool invert, GBool inlineImg) {
 	if (parameters->getDisplayImage()) {
-		imageIndex +=1;
-		printf("imagemask %d %d %d\n",imageIndex,height,width);
-		text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
+		//HD : in order to avoid millions of small (pixel) images
+		if (height>8 and width > 8  and imageIndex<1000){
+			imageIndex +=1;
+			text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
 				dumpJPEG, imageIndex);
+		}
 	}
 }
 
@@ -3291,10 +3536,10 @@ void XmlOutputDev::generateOutline(GList *itemsA, PDFDoc *docA, int levelA) {
 	GString *enc;
 	idItemToc = 0;
 	if (itemsA && itemsA->getLength() > 0) {
-		enc = new GString("Latin1"); // UTF-8 ? 
+		enc = new GString("UTF-8");  
 		uMap = globalParams->getUnicodeMap(enc);
 		delete enc;
-		dumpOutline(itemsA, docA, uMap, levelA, idItemToc);
+		dumpOutline(docOutlineRoot,itemsA, docA, uMap, levelA, idItemToc);
 		uMap->decRefCnt();
 	}
 }
@@ -3385,14 +3630,19 @@ int XmlOutputDev::dumpFragment(Unicode *text, int len, UnicodeMap *uMap,
 	}
 
 	return nCols;
+
 }
-GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
+GBool XmlOutputDev::dumpOutline(xmlNodePtr parentNode,GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 		int levelA, int idItemTocParentA) {
+
+	// store them in a list
+
 	xmlNodePtr nodeTocItem = NULL;
 	xmlNodePtr nodeItem = NULL;
 	xmlNodePtr nodeString = NULL;
 	xmlNodePtr nodeLink = NULL;
-
+	double x2,y2;
+	
 	GBool atLeastOne= gFalse;
 
 	char* tmp = (char*)malloc(10*sizeof(char));
@@ -3405,7 +3655,6 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 	}
 	int i;
 	GString *title;
-	//  	char buf[8];
 
 	nodeTocItem = xmlNewNode(NULL, (const xmlChar*)TAG_TOCITEMLIST);
 	sprintf(tmp, "%d", levelA);
@@ -3416,20 +3665,16 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 		xmlNewProp(nodeTocItem, (const xmlChar*)ATTR_ID_ITEM_PARENT,
 				(const xmlChar*)tmp);
 	}
-	xmlAddChild(docOutlineRoot, nodeTocItem);
+	//xmlAddChild(docOutlineRoot, nodeTocItem);
+	xmlAddChild(parentNode, nodeTocItem);
 
 	for (i = 0; i < itemsA->getLength(); ++i) {
 
 		title = new GString();
 
 		((OutlineItem *)itemsA->get(i))->open(); // open the kids 	
-		//    	for (j = 0; j < ((OutlineItem *)itemsA->get(i))->getTitleLength(); ++j) {
-		//    		
-		//      		n = uMapA->mapUnicode(((OutlineItem *)itemsA->get(i))->getTitle()[j], buf, sizeof(buf));
-		//      		title->append(buf, n);
-		//    	}
 		dumpFragment(((OutlineItem *)itemsA->get(i))->getTitle(), ((OutlineItem *)itemsA->get(i))->getTitleLength(), uMapA, title);
-
+		//printf("%s\n",title->getCString());
 		LinkActionKind kind;
 
 		LinkDest *dest;
@@ -3442,6 +3687,8 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 		double top = 0;
 		double right = 0;
 		double bottom = 0;
+		x2 = 0;
+		y2 = 0;
 
 		if (((OutlineItem *)itemsA->get(i))->getAction()) {
 
@@ -3470,8 +3717,16 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 					}
 				}
 
+
 				left = dest->getLeft();
 				top = dest->getTop();
+				x2= left;
+				y2=top;
+				//printf("%g %g %g %g %g %g\n",curstate[0],curstate[1],curstate[2],curstate[3],curstate[4],curstate[5]);
+				x2 = curstate[0] * left +  curstate[2] * top +  curstate[4];
+				y2 = curstate[1] * left +  curstate[3] * top +  curstate[5]; 
+
+				//printf("%g %g \n",x2,y2);
 				bottom = dest->getBottom();
 				right = dest->getRight();
 
@@ -3483,39 +3738,6 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 				}
 				break;
 
-				// GOTOR action
-			case actionGoToR:
-				dest = NULL;
-				namedDest = NULL;
-
-				if ((dest = ((LinkGoToR *)((OutlineItem *)itemsA->get(i))->getAction())->getDest())) {
-					dest = dest->copy();
-				} else if ((namedDest = ((LinkGoToR *)((OutlineItem *)itemsA->get(i))->getAction())->getNamedDest())) {
-					namedDest = namedDest->copy();
-				}
-				if (namedDest) {
-					dest = docA->findDest(namedDest);
-				}
-				if (dest) {
-					if (dest->isPageRef()) {
-						Ref pageref = dest->getPageRef();
-						page=docA->getCatalog()->findPage(pageref.num, pageref.gen);
-					} else {
-						page = dest->getPageNum();
-					}
-				}
-				left = dest->getLeft();
-				top = dest->getTop();
-				bottom = dest->getBottom();
-				right = dest->getRight();
-
-				if (dest) {
-					delete dest;
-				}
-				if (namedDest) {
-					delete namedDest;
-				}
-				break;
 
 				// LAUNCH action
 			case actionLaunch:
@@ -3564,20 +3786,20 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 
 		sprintf(tmp, "%d", page);
 		xmlNewProp(nodeLink, (const xmlChar*)ATTR_PAGE, (const xmlChar*)tmp);
-		sprintf(tmp, "%.2f", top);
+		sprintf(tmp, "%g", y2);
 		xmlNewProp(nodeLink, (const xmlChar*)ATTR_TOP, (const xmlChar*)tmp);
-		sprintf(tmp, "%.2f", bottom);
+		sprintf(tmp, "%g", bottom);
 		xmlNewProp(nodeLink, (const xmlChar*)ATTR_BOTTOM, (const xmlChar*)tmp);
-		sprintf(tmp, "%.2f", left);
+		sprintf(tmp, "%g", x2);
 		xmlNewProp(nodeLink, (const xmlChar*)ATTR_LEFT, (const xmlChar*)tmp);
-		sprintf(tmp, "%.2f", right);
+		sprintf(tmp, "%g", right);
 		xmlNewProp(nodeLink, (const xmlChar*)ATTR_RIGHT, (const xmlChar*)tmp);
 
 		xmlAddChild(nodeItem, nodeLink);
 		int idItemCurrent = idItemToc;
 		idItemToc++;
 		if (((OutlineItem *)itemsA->get(i))->hasKids()) {
-			dumpOutline(((OutlineItem *)itemsA->get(i))->getKids(), docA, uMapA, levelA+1,
+			dumpOutline(nodeItem,((OutlineItem *)itemsA->get(i))->getKids(), docA, uMapA, levelA+1,
 					idItemCurrent);
 		}
 
@@ -3590,6 +3812,7 @@ GBool XmlOutputDev::dumpOutline(GList *itemsA, PDFDoc *docA, UnicodeMap *uMapA,
 	return atLeastOne;
 }
 
+
 void XmlOutputDev::closeOutline(GString *shortFileName) {
 	shortFileName->append("_");
 	shortFileName->append(NAME_OUTLINE);
@@ -3597,4 +3820,5 @@ void XmlOutputDev::closeOutline(GString *shortFileName) {
 	xmlSaveFile(shortFileName->getCString(), docOutline);
 	xmlFreeDoc(docOutline);
 }
+
 

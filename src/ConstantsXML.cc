@@ -144,7 +144,9 @@ namespace ConstantsXML
 	const char *TAG_ANNOTATIONS = "ANNOTATIONS";
 	const char *TAG_ANNOTATION = "ANNOTATION";
 	const char *TAG_POPUP = "POPUP";
+	const char *TAG_AUTHOR = "AUTHOR";
 	const char *TAG_CONTENT = "CONTENT";
+	const char *TAG_RICH_CONTENT = "CONTENT";
 	const char *TAG_QUADPOINTS = "QUADPOINTS";
 	const char *TAG_QUADRILATERAL = "QUADRILATERAL";
 	const char *TAG_POINT = "POINT";
@@ -152,9 +154,15 @@ namespace ConstantsXML
 	// Attributs for annotations file
 	const char *ATTR_SUBTYPE = "subtype";
 	const char *ATTR_PAGENUM = "pagenum";
-	const char *ATTR_AUTHOR = "author";
 	const char *ATTR_OPEN = "open";
 	
+	// annotations in XML file
+	const char *ATTR_GOTOLINK = "goto";
+	const char *ATTR_URILINK = "href";
+	const char *ATTR_HIGHLIGHT = "highlight";
+	const char *ATTR_UNDERLINE = "underline";
+
+
 	// Attributs for number format
 	const char *ATTR_NUMFORMAT = "%g";
 	const char *ATTR_SID = "sid";

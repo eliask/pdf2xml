@@ -62,7 +62,7 @@ void PDFDocXrce::displayPages(OutputDev *out, xmlNodePtr docrootA, int firstPage
   	  
 			// Annotation's objects list
     		if (objAnnot.isArray()){
-  	  			an = new AnnotsXrce(objAnnot, docrootA, ctm, pageNum);  
+  	  			an = new AnnotsXrce(objAnnot, docrootA, getCatalog(),ctm, pageNum);  
   	  			delete an;		
   			}
   			objAnnot.free();

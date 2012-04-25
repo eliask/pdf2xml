@@ -376,18 +376,6 @@ int main(int argc, char *argv[]) {
   
   if (xmlOut->isOk()) {
   	
-  	if (outline){
-  		if (doc->getOutline()){
-  			xmlOut->initOutline(doc->getNumPages());  			 
-        	xmlOut->generateOutline(doc->getOutline()->getItems(), doc, 0);	
-        	xmlOut->closeOutline(shortFileName);
-       		fprintf(stderr, "Outline XML file creation\n");
-       		fflush(stderr);
-  		}else{
-				fprintf(stderr, "This document doesn't contain outline.\n");
-  				fflush(stderr);
-		}
-  	}
   	// We clean the data directory if it is already exist 
   	dataDirName = new GString(textFileName);
   	dataDirName->append(NAME_DATA_DIR);
@@ -404,11 +392,20 @@ int main(int argc, char *argv[]) {
   	  
     	doc->displayPages(xmlOut, docroot, firstPage, lastPage, 72, 72, 0, gTrue, gTrue, gFalse);
 
-    	xmlSaveFile(annotationfile->getCString(),docAnnotXml);
+    	
+	xmlSaveFile(annotationfile->getCString(),docAnnotXml);
   		xmlFreeDoc(docAnnotXml);
-  	}else{
+  	}
+	else{
   	  	doc->displayPages(xmlOut, NULL, firstPage, lastPage, 72, 72, 0, gTrue, gTrue, gFalse);
   	}
+  	if (outline){
+  		if (doc->getOutline()){
+  			xmlOut->initOutline(doc->getNumPages());  			 
+	        	xmlOut->generateOutline(doc->getOutline()->getItems(), doc, 0);	
+       		 	xmlOut->closeOutline(shortFileName);
+		}
+	}
   } 
   else {
     delete xmlOut;
