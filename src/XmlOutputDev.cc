@@ -1691,6 +1691,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 		stringTemp = new GString();
 		testLinkedText(node,word->xMin,word->yMin,word->xMax,word->yMax);
 		dumpFragment(word->text, word->len, uMap, stringTemp);
+		if (testAnnotatedText(word->xMin,word->yMin,word->xMax,word->yMax)){
+			xmlNewProp(node, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+		}
 //		printf("%s\n",stringTemp->getCString());
 
 		if (word->fontSize > lineFontSize) {
@@ -1960,9 +1963,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				numText = numText + 1;
 
 				//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
-				if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
-					xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
-				}
+				//if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+				//	xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+				//}
 				if (word->fontSize > lineFontSize) {
 					lineFontSize = word->fontSize;
 				}
@@ -2045,9 +2048,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 			numText = numText + 1;
 
 			//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
-			if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
-				xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
-			}
+			//if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+			//	xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+			//}
 
 			sprintf(tmp, ATTR_NUMFORMAT, minLineX);
 			xmlNewProp(nodeline, (const xmlChar*)ATTR_X, (const xmlChar*)tmp);
