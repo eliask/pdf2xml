@@ -26,6 +26,8 @@ different systems.
 **************
 
     pdftoxml
+        |- png 
+        |- zlib 
         |- exe
         |- src
         |- xpdf-3.XX
@@ -38,11 +40,14 @@ different systems.
         
 
 * Install libxml2 (Should be already installed on your linux distribution). See http://xmlsoft.org/  
+* compile the zlib and png libraries (make.bat or make.linux64)
 * Install xpdf. See http://www.foolabs.com/xpdf/
 * create libxpdf.a  in xpdf-XX/xpdf/    with ar -rc libxpdf.a *.o
 * Update Makefile.linux (paths to xpdf) 
 
-* Type 'make'.  This should build the executable:
+
+Use Makefile.linux64 for last version on Linux 64bits
+* Type 'make -f <MAKEFILENAME>'.  This should build the executable:
 
     exe/pdftoxml.exe
 
