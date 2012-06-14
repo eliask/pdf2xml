@@ -74,6 +74,10 @@ using namespace ConstantsXML;
 #include "Parameters.h"
 //#include "Page.h"
 
+// PNG lib
+#include "png.h"
+
+
 #ifdef MACOS
 // needed for setting type/creator of MacOS files
 #include "ICSupport.h"
@@ -1690,10 +1694,10 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 
 		stringTemp = new GString();
 		testLinkedText(node,word->xMin,word->yMin,word->xMax,word->yMax);
-		dumpFragment(word->text, word->len, uMap, stringTemp);
 		if (testAnnotatedText(word->xMin,word->yMin,word->xMax,word->yMax)){
 			xmlNewProp(node, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
 		}
+		dumpFragment(word->text, word->len, uMap, stringTemp);
 //		printf("%s\n",stringTemp->getCString());
 
 		if (word->fontSize > lineFontSize) {
@@ -1963,9 +1967,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 				numText = numText + 1;
 
 				//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
-				//if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
-				//	xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
-				//}
+//				if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+//					xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+//				}
 				if (word->fontSize > lineFontSize) {
 					lineFontSize = word->fontSize;
 				}
@@ -2048,9 +2052,9 @@ void TextPage::dump(GBool blocks, GBool fullFontName) {
 			numText = numText + 1;
 
 			//testLinkedText(nodeline,minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight);
-			//if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
-			//	xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
-			//}
+//			if (testAnnotatedText(minLineX,minLineY,minLineX+lineWidth,minLineY+lineHeight)){
+//				xmlNewProp(nodeline, (const xmlChar*)ATTR_HIGHLIGHT,(const xmlChar*)"yes");
+//			}
 
 			sprintf(tmp, ATTR_NUMFORMAT, minLineX);
 			xmlNewProp(nodeline, (const xmlChar*)ATTR_X, (const xmlChar*)tmp);
@@ -2713,6 +2717,9 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GBool invert, GBool inlineImg, GBool dumpJPEG,
 		int imageIndex) {
 
+
+	// ugly code / to be simplified
+
 	int i;
 	FILE *f;
 	int c;
@@ -2853,6 +2860,10 @@ void TextPage::drawImageMask(GfxState *state, Object *ref, Stream *str,
 void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 		int height, GfxImageColorMap *colorMap, int *maskColors,
 		GBool inlineImg, GBool dumpJPEG, int imageIndex) {
+
+	// ugly code / to be simplified
+
+
 	int i;
 	FILE *f;
 	int size;
@@ -3034,6 +3045,484 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 	return;
 }
 
+const char* TextPage::drawImageOrMask(GfxState *state, Object* ref, Stream *str,
+			       int width, int height,
+			       GfxImageColorMap *colorMap,
+			       int* /* maskColors */, GBool inlineImg, GBool mask, int imageIndex)
+{
+	GString pic_file;
+
+	double x0, y0; // top left corner of image
+	double w0, h0, w1, h1; // size of image
+	double xt, yt, wt, ht;
+
+	GBool rotate, xFlip, yFlip;
+	GString *id;
+
+	xmlNodePtr node = NULL;
+	const char* extension = NULL;
+
+	char tmp[10];
+
+	// Increment the absolute object index
+	idx++;
+
+	// get image position and size
+	state->transform(0, 0, &xt, &yt);
+	state->transformDelta(1, 1, &wt, &ht);
+	if (wt > 0) {
+		x0 = (xt);
+		w0 = (wt);
+	} else {
+		x0 = (xt + wt);
+		w0 = (-wt);
+	}
+	if (ht > 0) {
+		y0 = (yt);
+		h0 = (ht);
+	} else {
+		y0 = (yt + ht);
+		h0 = (-ht);
+	}
+
+	// register the block in the block structure of the page
+	double x1, y1, x2, y2, temp;
+	bool flip_x = false;
+	bool flip_y = false;
+	int flip = 0;
+	// when drawing a picture, we are in the scaled coordinates of the picture
+	// in which the top-left corner is at coordinates (0,1) and
+	// and  the bottom-right corner is at coordinates (1,0).
+	// 0 1
+	// 1 0
+	state->transform(0, 1, &x1, &y1);
+	state->transform(1, 0, &x2, &y2);
+
+	// Detect if the picture is printed flipped
+	if (x1 > x2)
+	{
+		flip |= 1;
+		flip_x = true;
+		temp = x1;
+		x1 = x2;
+		x2 = temp;
+	}
+	if (y1 > y2)
+	{
+		flip |= 2;
+		flip_y = true;
+		temp = y1;
+		y1 = y2;
+		y2 = temp;
+	}
+	GString *relname = new GString(RelfileName);
+	relname->append("-");
+	relname->append(GString::fromInt(imageIndex));
+
+	GString *refname = new GString(ImgfileName);
+	refname->append("-");
+	refname->append(GString::fromInt(imageIndex));
+
+//	if (pic_file.getLength() == 0)
+	if (1)
+	{
+		// ------------------------------------------------------------
+		// dump JPEG file
+		// ------------------------------------------------------------
+
+		if (str->getKind() == strDCT && (mask || colorMap->getNumPixelComps() == 3) && !inlineImg)
+		{
+			// TODO, do we need to flip Jpegs too?
+
+			// open image file
+			extension = ".jpg";
+			relname->append(".jpg");
+			refname->append(".jpg");
+//			compose_image_filename(dev_picture_base, ++dev_picture_number, extension, pic_file);
+
+			FILE* img_file = fopen(relname->getCString(), "wb");
+			if (img_file != NULL)
+			{
+				// initialize stream
+				str = ((DCTStream *)str)->getRawStream();
+				str->reset();
+
+				int c;
+
+				// copy the stream
+				while ((c = str->getChar()) != EOF)
+				{
+					fputc(c, img_file);
+				}
+
+				// cleanup
+				str->close();
+				// file cleanup
+				fclose(img_file);
+			}
+			// else TODO report error
+		}
+
+		// ------------------------------------------------------------
+		// dump black and white image
+		// ------------------------------------------------------------
+
+		else if (mask || (colorMap->getNumPixelComps() == 1 && colorMap->getBits() == 1))
+		{
+			extension = ".png";
+			relname->append(".png");
+			refname->append(".png");
+//			compose_image_filename(dev_picture_base, ++dev_picture_number, extension, pic_file);
+
+			int stride = (width + 7) >> 3;
+			unsigned char* data = new unsigned char[stride * height];
+
+			if (data != NULL)
+			{
+				str->reset();
+
+				// Prepare increments and initial value for flipping
+				int k, x_increment, y_increment;
+
+				if (flip_x)
+				{
+					if (flip_y)
+					{
+						// both flipped
+						k = height * stride - 1;
+						x_increment = -1;
+						y_increment = 0;
+					}
+					else
+					{
+						// x flipped
+						k = (stride - 1);
+						x_increment = -1;
+						y_increment = 2 * stride;
+					}
+				}
+				else
+				{
+					if (flip_y)
+					{
+						// y flipped
+						k = (height - 1) * stride;
+						x_increment = 1;
+						y_increment = -2 * stride;
+					}
+					else
+					{
+						// not flipped
+						k = 0;
+						x_increment = 1;
+						y_increment = 0;
+					}
+				}
+
+				// Retrieve the image raw data (columnwise monochrome pixels)
+				for (int y = 0; y < height; y++)
+				{
+					for (int x = 0; x < stride; x++)
+					{
+						data[k] = (unsigned char) str->getChar();
+						k += x_increment;
+					}
+
+					k += y_increment;
+				}
+
+				// there is more if the image is flipped in x...
+				if (flip_x)
+				{
+					int total = height * stride;
+					unsigned char a;
+
+					// bitwise flip of all bytes:
+					for (k = 0; k < total; k++)
+					{
+						a		= data[k];
+						a		= ( a                         >> 4) + ( a                         << 4);
+						a		= ((a & 0xCC /* 11001100b */) >> 2) + ((a & 0x33 /* 00110011b */) << 2);
+						data[k]	= ((a & 0xAA /* 10101010b */) >> 1) + ((a & 0x55 /* 01010101b */) << 1);
+					}
+
+					int complementary_shift = (width & 7);
+
+					if (complementary_shift != 0)
+					{
+						// now shift everything <shift> bits
+						int shift = 8 - complementary_shift;
+						unsigned char mask = 0xFF << complementary_shift;	// mask for remainder
+						unsigned char b;
+						unsigned char remainder = 0; // remainder is part that comes out when shifting
+													 // a byte which is reintegrated in the next byte
+
+						for (k = total - 1; k >= 0; k--)
+						{
+							a = data[k];
+							b = (a & mask) >> complementary_shift;
+							data[k] = (a << shift) | remainder;
+							remainder = b;
+						}
+					}
+				}
+
+				str->close();
+
+				// Set a B&W palette
+				png_color palette[2];
+				palette[0].red = palette[0].green = palette[0].blue = 0;
+				palette[1].red = palette[1].green = palette[1].blue = 0xFF;
+
+				// Save PNG file
+				save_png(relname, width, height, stride, data, 1, PNG_COLOR_TYPE_PALETTE, palette, 2);
+
+			}
+		}
+
+		// ------------------------------------------------------------
+		// dump color or greyscale image
+		// ------------------------------------------------------------
+
+		else
+		{
+			extension = ".png";
+			refname->append(".png");
+			relname->append(".png");
+
+			unsigned char* data = new unsigned char[width * height * 3];
+
+			if (data != NULL)
+			{
+				ImageStream* imgStr = new ImageStream(str, width, colorMap->getNumPixelComps(), colorMap->getBits());
+				imgStr->reset();
+
+				GfxRGB rgb;
+
+				// Prepare increments and initial value for flipping
+				int k, x_increment, y_increment;
+
+				if (flip_x)
+				{
+					if (flip_y)
+					{
+						// both flipped
+						k = 3 * height * width - 3;
+						x_increment = -6;
+						y_increment = 0;
+					}
+					else
+					{
+						// x flipped
+						k = 3 * (width - 1);
+						x_increment = -6;
+						y_increment = 6 * width;
+					}
+				}
+				else
+				{
+					if (flip_y)
+					{
+						// y flipped
+						k = 3 * (height - 1) * width;
+						x_increment = 0;
+						y_increment = -6 * width;
+					}
+					else
+					{
+						// not flipped
+						k = 0;
+						x_increment = 0;
+						y_increment = 0;
+					}
+				}
+
+				// Retrieve the image raw data (RGB pixels)
+				for (int y = 0; y < height; y++)
+				{
+					Guchar* p = imgStr->getLine();
+					for (int x = 0; x < width; x++)
+					{
+						colorMap->getRGB(p, &rgb);
+						data[k++] = clamp(rgb.r >> 8);
+						data[k++] = clamp(rgb.g >> 8);
+						data[k++] = clamp(rgb.b >> 8);
+						k += x_increment;
+						p += colorMap->getNumPixelComps();
+					}
+
+					k += y_increment;
+				}
+
+				delete imgStr;
+
+				// Save PNG file
+				save_png(relname, width, height, width * 3, data, 24, PNG_COLOR_TYPE_RGB, NULL, 0);
+			}
+		}
+
+	}
+	if (!inlineImg || (inlineImg && parameters->getImageInline())) {
+			node = xmlNewNode(NULL, (const xmlChar*)TAG_IMAGE);
+			GString *id;
+			id = new GString("p");
+			xmlNewProp(node, (const xmlChar*)ATTR_ID, (const xmlChar*)buildIdImage(num, numImage, id)->getCString());
+			delete id;
+			numImage = numImage + 1;
+
+			id = new GString("p");
+			xmlNewProp(node, (const xmlChar*)ATTR_SID, (const xmlChar*)buildSID(num, getIdx(), id)->getCString());
+			delete id;
+
+			sprintf(tmp, ATTR_NUMFORMAT, x0);
+			xmlNewProp(node, (const xmlChar*)ATTR_X, (const xmlChar*)tmp);
+			sprintf(tmp, ATTR_NUMFORMAT, y0);
+			xmlNewProp(node, (const xmlChar*)ATTR_Y, (const xmlChar*)tmp);
+			sprintf(tmp, ATTR_NUMFORMAT, w0);
+			xmlNewProp(node, (const xmlChar*)ATTR_WIDTH, (const xmlChar*)tmp);
+			sprintf(tmp, ATTR_NUMFORMAT, h0);
+			xmlNewProp(node, (const xmlChar*)ATTR_HEIGHT, (const xmlChar*)tmp);
+//			if (rotate){
+//				xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sTRUE);
+//			}
+//			else{
+//				xmlNewProp(node,(const xmlChar*)ATTR_ROTATION,(const xmlChar*)sFALSE);
+//			}
+			if (inlineImg) {
+				xmlNewProp(node, (const xmlChar*)ATTR_INLINE, (const xmlChar*)sTRUE);
+			}
+			xmlNewProp(node, (const xmlChar*)ATTR_HREF,
+					(const xmlChar*)refname->getCString());
+			xmlAddChild(page, node);
+		}
+
+		if (inlineImg && !parameters->getImageInline()) {
+			listeImageInline.push_back(new ImageInline(x0, y0, w0, h0, getIdWORD(), imageIndex, refname, getIdx()));
+		}
+
+		id = new GString("p");
+		xmlNewProp(node, (const xmlChar*)ATTR_CLIPZONE,
+				(const xmlChar*)buildIdClipZone(num, idCur, id)->getCString());
+		delete id;
+
+	return extension;
+//	append_image_block(round(x1), round(y1), round(x2-x1), round(y2-y1), pic_file);
+}
+
+
+void file_write_data (png_structp png_ptr, png_bytep data, png_size_t length)
+{
+	FILE* file = (FILE*) png_ptr->io_ptr;
+
+	if (fwrite(data, 1, length,file) != length)
+		png_error(png_ptr, "Write Error");
+}
+
+//------------------------------------------------------------
+
+void file_flush_data (png_structp png_ptr)
+{
+	FILE* file = (FILE*) png_ptr->io_ptr;
+
+	if (fflush(file))
+		png_error(png_ptr, "Flush Error");
+}
+
+
+bool TextPage::save_png (GString* file_name,
+							 unsigned int width, unsigned int height, unsigned int row_stride,
+							 unsigned char* data,
+							 unsigned char bpp, unsigned char color_type, png_color* palette, unsigned short color_count)
+{
+	png_struct *png_ptr;
+	png_info *info_ptr;
+
+	// Create necessary structs
+	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (png_ptr == NULL)
+	{
+		return false;
+	}
+
+	info_ptr = png_create_info_struct(png_ptr);
+	if (info_ptr == NULL)
+	{
+		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
+		return false;
+	}
+
+	// Open file
+	FILE* file = fopen(file_name->getCString(), "wb");
+	if (file == NULL)
+	{
+		png_destroy_write_struct(&png_ptr, (png_infopp) NULL);
+		return false;
+	}
+
+	if (setjmp(png_ptr->jmpbuf))
+	{
+		png_destroy_write_struct(&png_ptr, (png_infopp) &info_ptr);
+		fclose(file);
+		return false;
+	}
+
+	// Writing functions
+    png_set_write_fn(png_ptr, file, (png_rw_ptr) file_write_data, (png_flush_ptr) file_flush_data);
+
+	// Image header
+	info_ptr->width				= width;
+	info_ptr->height			= height;
+	info_ptr->pixel_depth		= bpp;
+	info_ptr->channels			= (bpp>8) ? (unsigned char)3: (unsigned char)1;
+	info_ptr->bit_depth			= (unsigned char)(bpp/info_ptr->channels);
+	info_ptr->color_type		= color_type;
+	info_ptr->compression_type	= info_ptr->filter_type = 0;
+	info_ptr->valid				= 0;
+	info_ptr->rowbytes			= row_stride;
+	info_ptr->interlace_type	= PNG_INTERLACE_NONE;
+
+	// Background
+	png_color_16 image_background={ 0, 255, 255, 255, 0 };
+	png_set_bKGD(png_ptr, info_ptr, &image_background);
+
+	// Metrics
+	png_set_pHYs(png_ptr, info_ptr, 3780, 3780, PNG_RESOLUTION_METER); // 3780 dot per meter
+
+	// Palette
+	if (palette != NULL)
+	{
+		png_set_IHDR(png_ptr, info_ptr, info_ptr->width, info_ptr->height, info_ptr->bit_depth,
+					 PNG_COLOR_TYPE_PALETTE, info_ptr->interlace_type,
+					 PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+		info_ptr->valid |= PNG_INFO_PLTE;
+		info_ptr->palette = palette;
+		info_ptr->num_palette = color_count;
+	}
+
+	// Write the file header
+	png_write_info(png_ptr, info_ptr);
+
+	// Interlace handling
+	int num_pass = png_set_interlace_handling(png_ptr);
+	for (int pass = 0; pass < num_pass; pass++){
+		for (unsigned int y = 0; y < height; y++)
+		{
+			png_write_row(png_ptr, &data[row_stride * y]);
+		}
+	}
+
+	// Finish writing
+	png_write_end(png_ptr, info_ptr);
+
+	// Cleanup
+	png_destroy_write_struct(&png_ptr, (png_infopp) &info_ptr);
+
+	fclose(file);
+
+	return true;
+}
+
+
 
 //------------------------------------------------------------------------
 // XmlOutputDev
@@ -3041,7 +3530,7 @@ void TextPage::drawImage(GfxState *state, Object *ref, Stream *str, int width,
 
 XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 		Catalog *catalog, GBool physLayoutA, GBool verboseA, GString *nsURIA,
-		GString *cmdA) {
+		GString *cmdA)	{
 	text = NULL;
 	physLayout = physLayoutA;
 	rawOrder = 1;
@@ -3104,6 +3593,9 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 
 	}// end IF
 
+
+	lPictureReferences = new GList();
+
 	doc = xmlNewDoc((const xmlChar*)VERSION);
 
 	globalParams->setTextEncoding((char*)ENCODING_UTF8);
@@ -3131,7 +3623,9 @@ XmlOutputDev::XmlOutputDev(GString *fileName, GString *fileNamePdf,
 	}		
 	GString *title;
 	title = new GString();
-	dumpFragment((Unicode*)fileNamePDF, fileNamePDF->getLength(), uMap, title);
+	title= toUnicode(fileNamePDF,uMap);
+//	dumpFragment((Unicode*)fileNamePDF, fileNamePDF->getLength(), uMap, title);
+
 	xmlAddChild(nodeMetadata, nodeNameFilePdf);
 	xmlNodeSetContent(nodeNameFilePdf,
 			(const xmlChar*)xmlEncodeEntitiesReentrant(nodeNameFilePdf->doc,
@@ -3184,6 +3678,10 @@ XmlOutputDev::~XmlOutputDev() {
 	xmlSaveFile(myfilename->getCString(), doc);
 	xmlFreeDoc(doc);
 
+	for (int i = 0; i < lPictureReferences->getLength(); i++)
+		{
+			delete ((PictureReference*) lPictureReferences->get(i));
+		}
 	if (text) {
 		delete text;
 	}
@@ -3261,6 +3759,36 @@ XmlOutputDev::~XmlOutputDev() {
 //	}
 //	info.free();
 //}
+
+
+GString* XmlOutputDev::toUnicode(GString *s,UnicodeMap *uMap){
+
+	GString *news;
+	Unicode *uString;
+	int uLen;
+	int j;
+
+	if ((s->getChar(0) & 0xff) == 0xfe &&
+	(s->getChar(1) & 0xff) == 0xff) {
+	  uLen = (s->getLength() - 2) / 2;
+	  uString = (Unicode *)gmallocn(uLen, sizeof(Unicode));
+	  for (j = 0; j < uLen; ++j) {
+		  uString[j] = ((s->getChar(2 + 2*j) & 0xff) << 8) |
+			   (s->getChar(3 + 2*j) & 0xff);
+	  }
+	} else {
+		uLen = s->getLength();
+		uString = (Unicode *)gmallocn(uLen, sizeof(Unicode));
+	  for (j = 0; j < uLen; ++j) {
+		  uString[j] = pdfDocEncoding[s->getChar(j) & 0xff];
+	  }
+	}
+
+	news = new GString();
+	dumpFragment(uString,uLen,uMap,news);
+
+	return news;
+}
 
 void XmlOutputDev::startPage(int pageNum, GfxState *state) {
 	//curstate = (double*)malloc(6*sizeof(double));
@@ -3502,23 +4030,169 @@ GString *XmlOutputDev::convtoX(unsigned int xcol) const {
 void XmlOutputDev::drawImage(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GfxImageColorMap *colorMap, int *maskColors,
 		GBool inlineImg) {
+
+	const char* ext;
+
+	int index=-1;
 	if (parameters->getDisplayImage()) {
-		//HD : in order to avoid millions of small (pixel) images
-		if (height > 8 and width > 8 and imageIndex <1000){
-			imageIndex+=1;
-			text->drawImage(state, ref, str, width, height, colorMap, maskColors,inlineImg, dumpJPEG, imageIndex);
+		// test if already processed
+
+		// register the block in the block structure of the page
+		double x1, y1, x2, y2, temp;
+		bool flip_x = false;
+		bool flip_y = false;
+		int flip = 0;
+		// when drawing a picture, we are in the scaled coordinates of the picture
+		// in which the top-left corner is at coordinates (0,1) and
+		// and  the bottom-right corner is at coordinates (1,0).
+		state->transform(0, 1, &x1, &y1);
+		state->transform(1, 0, &x2, &y2);
+
+		// Detect if the picture is printed flipped
+		if (x1 > x2)
+		{
+			flip |= 1;
+			flip_x = true;
+			temp = x1;
+			x1 = x2;
+			x2 = temp;
+		}
+
+		if (y1 > y2)
+		{
+			flip |= 2;
+			flip_y = true;
+			temp = y1;
+			y1 = y2;
+			y2 = temp;
+		}
+		int reference = -1;
+		if ((ref != NULL) && (ref->isRef()))
+		{
+			reference = ref->getRefNum();
+
+			for (int i = 0; i < lPictureReferences->getLength(); i++)
+			{
+				PictureReference* pic_reference = (PictureReference*) lPictureReferences->get(i);
+				if (   (pic_reference->reference_number == reference)
+					&& (pic_reference->picture_flip == flip))
+				{
+					index = pic_reference->picture_number;
+					// We already created a file for this picture
+//					printf("IMAGE ALREADY SEEN flip=%d\t%d %d\n",flip,reference,index);
+//					compose_image_filename(dev_picture_base,
+//										   pic_reference->picture_number,
+//										   pic_reference->picture_extension,
+//										   pic_file);
+					break;
+				}
+			}
+		}
+		//new image
+		if (index == -1)
+		{
+			//HD : in order to avoid millions of small (pixel) images
+					if (height > 8 and width > 8 and imageIndex <1000){
+						imageIndex+=1;
+						// Save this in the references
+			//			text->drawImage(state, ref, str, width, height, colorMap, maskColors,inlineImg, dumpJPEG, imageIndex);
+						ext= text->drawImageOrMask(state, ref, str, width, height, colorMap, maskColors, inlineImg, false,imageIndex); // not a mask
+						lPictureReferences->append(new PictureReference(reference, flip, imageIndex, ext));
+
+
+					}
+
+		}
+		else{
+			//HD : in order to avoid millions of small (pixel) images
+			if (height > 8 and width > 8 and imageIndex <1000){
+	//			text->drawImage(state, ref, str, width, height, colorMap, maskColors,inlineImg, dumpJPEG, imageIndex);
+				ext= text->drawImageOrMask(state, ref, str, width, height, colorMap, maskColors, inlineImg, false,index); // not a mask
+
+			}
 		}
 	}
 }
 
 void XmlOutputDev::drawImageMask(GfxState *state, Object *ref, Stream *str,
 		int width, int height, GBool invert, GBool inlineImg) {
-	if (parameters->getDisplayImage()) {
-		//HD : in order to avoid millions of small (pixel) images
-		if (height>8 and width > 8  and imageIndex<1000){
-			imageIndex +=1;
-			text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
-				dumpJPEG, imageIndex);
+
+
+	const char* ext;
+	// register the block in the block structure of the page
+	double x1, y1, x2, y2, temp;
+	bool flip_x = false;
+	bool flip_y = false;
+	int flip = 0;
+
+	int index = -1;
+	// when drawing a picture, we are in the scaled coordinates of the picture
+	// in which the top-left corner is at coordinates (0,1) and
+	// and  the bottom-right corner is at coordinates (1,0).
+	state->transform(0, 1, &x1, &y1);
+	state->transform(1, 0, &x2, &y2);
+
+	// Detect if the picture is printed flipped
+	if (x1 > x2)
+	{
+		flip |= 1;
+		flip_x = true;
+		temp = x1;
+		x1 = x2;
+		x2 = temp;
+	}
+
+	if (y1 > y2)
+	{
+		flip |= 2;
+		flip_y = true;
+		temp = y1;
+		y1 = y2;
+		y2 = temp;
+	}
+	int reference = -1;
+	if ((ref != NULL) && (ref->isRef()))
+	{
+		reference = ref->getRefNum();
+
+		for (int i = 0; i < lPictureReferences->getLength(); i++)
+		{
+			PictureReference* pic_reference = (PictureReference*) lPictureReferences->get(i);
+
+			if (   (pic_reference->reference_number == reference)
+				&& (pic_reference->picture_flip == flip))
+			{
+				// We already created a file for this picture
+				index = pic_reference->picture_number;
+//				printf("MASK IMAGE ALREADY SEEN flip=%d\t%d %d\n",flip,reference,index);
+				break;
+			}
+		}
+	}
+	//new image
+	if (index == -1)
+	{
+		if (parameters->getDisplayImage()) {
+				//HD : in order to avoid millions of small (pixel) images
+				if (height>8 and width > 8  and imageIndex<1000){
+					imageIndex +=1;
+					// Save this in the references
+					ext= text->drawImageOrMask(state, ref, str, width, height, NULL, NULL, inlineImg, true,imageIndex); // mask
+					lPictureReferences->append(new PictureReference(reference, flip, imageIndex, ext));
+		//			text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
+		//				dumpJPEG, imageIndex);
+				}
+			}
+	}
+	else{
+		if (parameters->getDisplayImage()) {
+			//HD : in order to avoid millions of small (pixel) images
+			if (height>8 and width > 8  and imageIndex<1000){
+				//use reference instead
+				ext= text->drawImageOrMask(state, ref, str, width, height, NULL, NULL, inlineImg, true,index); // mask
+	//			text->drawImageMask(state, ref, str, width, height, invert, inlineImg,
+	//				dumpJPEG, imageIndex);
+			}
 		}
 	}
 }

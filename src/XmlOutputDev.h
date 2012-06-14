@@ -35,6 +35,9 @@
 #include "Catalog.h"
 #include "AnnotsXrce.h"
 
+// PNG lib
+#include "png.h"
+
 
 using namespace std;
 #include <list>
@@ -598,6 +601,21 @@ public:
 //  void addLink(int xMin, int yMin, int xMax, int yMax, Link *link);
 
   
+  //from mobi
+  const char* drawImageOrMask(GfxState *state, Object* ref, Stream *str,
+  			       int width, int height,
+  			       GfxImageColorMap *colorMap,
+  			       int* /* maskColors */, GBool inlineImg, GBool mask,int imageIndex);
+
+  // utility function to save raw data to a png file using the ong lib
+  bool save_png (GString* file_name,
+				   unsigned int width, unsigned int height, unsigned int row_stride,
+				   unsigned char* data,
+				   unsigned char bpp = 24, unsigned char color_type = PNG_COLOR_TYPE_RGB,
+				   png_color* palette = NULL, unsigned short color_count = 0);
+
+
+
   /** Draw the image 
    * @param state The state description
    * @param ref The reference 
@@ -637,6 +655,14 @@ public:
 
   vector<ImageInline*> listeImageInline;
   
+	// clamp to uint8
+	static inline int clamp (int x)
+	{
+		if (x > 255) return 255;
+		if (x < 0) return 0;
+		return x;
+	}
+
 private:
 
   /** Clear all */
@@ -750,6 +776,9 @@ private:
   GString *RelfileName;
   /** For XML ref with xi:include */
   GString *ImgfileName;
+
+  /**   */
+
   void *vecOutputStream;
   
   /** To keep text in content stream order */
@@ -811,6 +840,29 @@ private:
 
 };
 
+
+
+// Simple class to save picture references
+class PictureReference
+{
+public:
+
+	PictureReference (int ref, int flip, int number, const char* const extension) :
+		reference_number(ref),
+		picture_flip(flip),
+		picture_number(number),
+		picture_extension(extension)
+	{}
+
+	int					reference_number;
+	int					picture_flip;		// 0 = none, 1 = flip X, 2 = flip Y, 3 = flip both
+	int					picture_number;
+	const char *const	picture_extension;
+};
+
+
+
+
 //------------------------------------------------------------------------
 // XmlOutputDev
 //------------------------------------------------------------------------
@@ -818,7 +870,7 @@ private:
  * XmlOutputDev.h (based on TextOutputDev.h, Copyright 1997-2003 Glyph & Cog, LLC)<br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 04-2006
- * @author Hervï¿½ Dï¿½jean
+ * @author Hervé Déjean
  * @author Sophie Andrieu
  * @version xpdf 3.01
  * @see OutputDev
@@ -975,6 +1027,9 @@ public:
    * @param levelA The hierarchic level of the current items list */
   void generateOutline(GList *itemsA, PDFDoc *docA, int levelA);
 
+  GString* toUnicode(GString *s,UnicodeMap *uMap);
+
+
   xmlNodePtr getDocRoot(){return docroot;}
 private:
 
@@ -1038,8 +1093,13 @@ private:
   
   /** To set to dump native JPEG files */
   GBool dumpJPEG;
-  /** The index for eahc image */
+  /** The index for each image */
   int imageIndex;
+
+  /** list of pictures references*/
+  GList *lPictureReferences;
+
+
   /** The item id for each toc items */
   int idItemToc;
 
