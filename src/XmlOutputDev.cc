@@ -814,7 +814,7 @@ void TextPage::endPage(GString *dataDir) {
 						cp->insert(i,"%20");
 					}
 				}
-				printf("%s\n",imageName->getCString());
+//				printf("%s\n",imageName->getCString());
 				xmlNewProp(xiinclude, (const xmlChar*)ATTR_HREF,
 						(const xmlChar*)cp->getCString());
 				delete imageName;
@@ -2451,7 +2451,7 @@ void TextPage::doPath(GfxPath *path, GfxState *state, GString* gattributes) {
 	// Increment the absolute object index
 	idx++;
 	//printf("path %d\n",idx);
-	if (idx>10000){return;}
+//	if (idx>10000){return;}
 
 	xmlNodePtr groupNode = NULL;
 
@@ -2589,9 +2589,9 @@ void TextPage::clip(GfxState *state) {
 	// Increment the absolute object index
 	idx++;
 	//printf("clip %d\n",idx);
-	if (idx>10000){
-		return;
-	}
+//	if (idx>10000){
+//		return;
+//	}
 
 	// CLIP tag
 	gnode = xmlNewNode(NULL, (const xmlChar*)TAG_CLIP);
