@@ -1,0 +1,1 @@
+pbm/ppm/... images are now converted into PNG (based on mobi pdf2xml code)
