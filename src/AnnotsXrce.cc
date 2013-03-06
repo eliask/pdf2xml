@@ -460,7 +460,7 @@ AnnotsXrce::~AnnotsXrce(){
 
 void AnnotsXrce::transform(double x1, double y1, double *x2, double *y2, double *c){
 	*x2 = c[0] * x1 + c[2] * y1 + c[4];
-    *y2 = c[1] * x1 + c[3] * y1 + c[5]; 
+    *y2 = c[1] * x1 + c[3] * y1 + c[5];
 }
 
 GString* AnnotsXrce::toUnicode(GString *s,UnicodeMap *uMap){

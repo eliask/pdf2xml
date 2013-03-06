@@ -13,7 +13,7 @@ XPDF =xpdf_3.01
 
 
 CC=gcc
-CFLAGS=-Wall -I$(XPDF) 
+CFLAGS=-Wall -I$(XPDF)
 CXX=g++
 CXXFLAGS=$(CFLAGS)
 CXXFLAGSGOO=-I$(XPDF)\goo
@@ -60,4 +60,3 @@ clean:
 	del $(DIRSRC)\libsrc.a
 	del $(DIRSRC)\*.o
 	del $(DIREXE)\*.exe
-

@@ -25,5 +25,3 @@ del %DIRSRC%\libsrc.a
 %LIBPROG% -rc %DIRSRC%\libsrc.a *.o
 
 %CXX% %CXXFLAGS% -o %DIREXE%\pdftoxml.exe %DIRSRC%\pdftoxml.cc  -I%DIRXPDF% -I%DIRLIBXML%\include -I%DIRICONV%\include %DIRLIBXML%\bin\libxml2.dll %DIRSRC%\libsrc.a %DIRXPDF%\libxpdf.a %DIRFOFI%\libfofi.a %DIRGOO%\libGoo.a
-
-

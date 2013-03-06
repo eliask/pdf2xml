@@ -103,7 +103,7 @@ static ArgDesc argDesc[] = {
   {"-fullFontName", argFlag,     &fullFontName,  0,
    "fonts names are not normalized"},
   {"-nsURI", argString,     namespaceUri,  sizeof(namespaceUri),
-   "add the specified namespace URI"},   
+   "add the specified namespace URI"},
   {"-opw",     argString,   ownerPassword,  sizeof(ownerPassword),
    "owner password (for encrypted files)"},
   {"-upw",     argString,   userPassword,   sizeof(userPassword),
@@ -121,13 +121,13 @@ static ArgDesc argDesc[] = {
   {"-?",       argFlag,     &printHelp,     0,
    "print usage information"},
   {"--saveconf",        argString,      XMLcfgFileName,    sizeof(XMLcfgFileName),
-   "save all command line parameters in the specified XML <file>"}, 
+   "save all command line parameters in the specified XML <file>"},
 //  {"-conf",        argString,      cfgFileName,    sizeof(cfgFileName),
 //   "configuration file to use in place of .xpdfrc"},
   {NULL}
 };
 
- /** 
+ /**
  * Main method which execute pdftoxml tool <br/>
  * This file pdftoxml.cc is based on pdftotext.cc, Copyright 1997-2003 Glyph & Cog, LLC <br/>
  * Usage: pdftoxml [options] <PDF-file> [<XML-file>] <br/>
@@ -159,7 +159,7 @@ static ArgDesc argDesc[] = {
  */
 int main(int argc, char *argv[]) {
   PDFDocXrce *doc;
-  
+
   GString *fileName;
   GString *textFileName;
   GString *dataDirName;
@@ -173,14 +173,14 @@ int main(int argc, char *argv[]) {
   char *p;
   int exitCode;
   char *temp;
-  
+
   exitCode = 99;
 
   // parse args
   ok = parseArgs(argDesc, &argc, argv);
   if (XMLcfgFileName[0]){}
   else{
-	  if (!ok || argc < 2 || argc > 3 || printVersion || printHelp) { 
+	  if (!ok || argc < 2 || argc > 3 || printVersion || printHelp) {
 	    fprintf(stderr, PDFTOXML_NAME);
 	    fprintf(stderr, " version ");
 	    fprintf(stderr, PDFTOXML_VERSION);
@@ -196,11 +196,11 @@ int main(int argc, char *argv[]) {
 //  fileName = new GString(argv[1]);
   cmd = new GString();
   globalParams = new GlobalParams(cfgFileName);
-  
+
   // Parameters specifics to pdftoxml
   parameters = new Parameters();
-  
-   
+
+
   if(noImage){
     parameters->setDisplayImage(gFalse);
     cmd->append("-noImage ");
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
   else{
     parameters->setDisplayOutline(gTrue);
   }
-  
+
   if(cutPages){
     parameters->setCutAllPages(gFalse);
     cmd->append("-cutPages ");
@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
   else{
     parameters->setCutAllPages(gTrue);
   }
-  
+
   if(blocks){
     parameters->setDisplayBlocks(gTrue);
     cmd->append("-blocks ");
@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
   else{
     parameters->setDisplayBlocks(gFalse);
   }
-  
+
   if(fullFontName){
     parameters->setFullFontName(gTrue);
     cmd->append("-fullFontName ");
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
   else{
     parameters->setImageInline(gFalse);
   }
-  
+
   if (quiet) {
     globalParams->setErrQuiet(quiet);
   }
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   if (verbose){
   	cmd->append("-verbose ");
   }
-  
+
   // open PDF file
   if (ownerPassword[0] != '\001') {
     ownerPW = new GString(ownerPassword);
@@ -276,25 +276,25 @@ int main(int argc, char *argv[]) {
   } else {
     userPW = NULL;
   }
-  
+
   if (namespaceUri[0] != '\001') {
     nsURI = new GString(namespaceUri);
     cmd->append("-nsURI ")->append(nsURI)->append(" ");
   } else {
     nsURI = NULL;
   }
-  
+
   //store paramneters in a given XML file
   if (XMLcfgFileName && XMLcfgFileName[0]){
    	parameters->saveToXML(XMLcfgFileName,firstPage,lastPage);
 //   	goto err0;
-  } 
-  
+  }
+
   if (argc < 2) {goto err0;}
   fileName = new GString(argv[1]);
   // Create the object PDF doc
-  doc = new PDFDocXrce(fileName, ownerPW, userPW); 
-  
+  doc = new PDFDocXrce(fileName, ownerPW, userPW);
+
   if (userPW) {
     delete userPW;
   }
@@ -319,7 +319,7 @@ int main(int argc, char *argv[]) {
       	shortFileName = new GString(textFileName);
     }
   }
-  // ELSE we build the output XML file name with the PDF file name 
+  // ELSE we build the output XML file name with the PDF file name
   else {
     p = fileName->getCString() + fileName->getLength() - 4;
     if (!strcmp(p, EXTENSION_PDF) || !strcmp(p, EXTENSION_PDF_MAJ)) {
@@ -334,14 +334,14 @@ int main(int argc, char *argv[]) {
   }
 
   // For the annotations XML file
-  if (annots){  
+  if (annots){
   	annotationfile = new GString(shortFileName);
   	annotationfile->append("_");
   	annotationfile->append(NAME_ANNOT);
   	annotationfile->append(EXTENSION_XML);
   	cmd->append("-annotation ");
   }
-  
+
   // Get page range
   if (firstPage < 1) {
     firstPage = 1;
@@ -352,7 +352,7 @@ int main(int argc, char *argv[]) {
   	cmd->append("-f ")->append(temp)->append(" ");
   	free(temp);
   }
-  
+
   if (lastPage!=0){
   	int last = lastPage;
   	if (lastPage > doc->getNumPages()){
@@ -372,11 +372,11 @@ int main(int argc, char *argv[]) {
 
 //    printf("crop width: %g\n",doc->getPageCropWidth(1));
   xmlOut = new XmlOutputDev(textFileName, fileName, doc->getCatalog(), physLayout, verbose, nsURI, cmd);
- 
-  
+
+
   if (xmlOut->isOk()) {
   	
-  	// We clean the data directory if it is already exist 
+  	// We clean the data directory if it is already exist
   	dataDirName = new GString(textFileName);
   	dataDirName->append(NAME_DATA_DIR);
   	removeAlreadyExistingData(dataDirName);
@@ -389,7 +389,7 @@ int main(int argc, char *argv[]) {
   		docAnnotXml->encoding = xmlStrdup((const xmlChar*)ENCODING_UTF8);
   		docroot = xmlNewNode(NULL,(const xmlChar*)TAG_ANNOTATIONS);
   		xmlDocSetRootElement(docAnnotXml,docroot);
-  	  
+  	
     	doc->displayPages(xmlOut, docroot, firstPage, lastPage, 72, 72, 0, gTrue, gTrue, gFalse);
 
     	
@@ -401,12 +401,12 @@ int main(int argc, char *argv[]) {
   	}
   	if (outline){
   		if (doc->getOutline()){
-  			xmlOut->initOutline(doc->getNumPages());  			 
+  			xmlOut->initOutline(doc->getNumPages());  			
 	        	xmlOut->generateOutline(doc->getOutline()->getItems(), doc, 0);	
        		 	xmlOut->closeOutline(shortFileName);
 		}
 	}
-  } 
+  }
   else {
     delete xmlOut;
     exitCode = 2;
@@ -415,20 +415,20 @@ int main(int argc, char *argv[]) {
   delete xmlOut;
   exitCode = 0;
   // clean up
-  
+
   if (nsURI) {
     delete nsURI;
   }
-  
+
  err3:
   delete textFileName;
-  
+
  err2:
   delete doc;
   delete globalParams;
   delete parameters;
   delete cmd;
-  
+
  err0:
   // check for memory leaks
   Object::memCheck(stderr);
@@ -436,7 +436,7 @@ int main(int argc, char *argv[]) {
   return exitCode;
 }
 
-/** Remove all files which are in data directory of file pdf if it is already exist 
+/** Remove all files which are in data directory of file pdf if it is already exist
  * @param dir The directory name where we remove all data */
 void removeAlreadyExistingData(GString *dir) {
 	GString *file;

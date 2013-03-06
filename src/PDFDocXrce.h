@@ -30,7 +30,7 @@ class LinkAction;
 class LinkDest;
 class Outline;
 
-/** 
+/**
  * PDFDocXrce class <br></br>
  * This class extend the PDFDoc class<br></br>
  * Xerox Research Centre Europe <br></br>
@@ -41,14 +41,14 @@ class PDFDocXrce: public PDFDoc {
 	
 public:
 
-  /** Construct a new <code>PDFDocXrce</code> 
-   * @param fileNameA The file name  
+  /** Construct a new <code>PDFDocXrce</code>
+   * @param fileNameA The file name
    * @param ownerPassword The owner password
    * @param userPassword The user password
    */
 	PDFDocXrce(GString *fileNameA, GString *ownerPassword = NULL, GString *userPassword = NULL);
 
-  /** Destructor 
+  /** Destructor
    */
 	virtual ~PDFDocXrce();
 

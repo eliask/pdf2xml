@@ -16,15 +16,15 @@ DIRPNG= ./image/png
 DIRZLIB= ./image/zlib
 
 CC=gcc
-#CFLAGS=-Wall  -I$(XPDF) -I/usr/include/glib-2.0 -I/usr/lib6Yp4-I/usr/lib64/glib-2.0/include 
-CFLAGS=-Wall  -I$(XPDF) -I/usr/include/libxml2 -I/usr/lib64/include 
+#CFLAGS=-Wall  -I$(XPDF) -I/usr/include/glib-2.0 -I/usr/lib6Yp4-I/usr/lib64/glib-2.0/include
+CFLAGS=-Wall  -I$(XPDF) -I/usr/include/libxml2 -I/usr/lib64/include
 CXX=g++
-CXXFLAGS=$(CFLAGS) 
+CXXFLAGS=$(CFLAGS)
 CXXFLAGSGOO=-I$(XPDF)/goo
 CXXFLAGSFOFI=-I$(XPDF)/fofi
 
 LIBPROG=ar
-DEL = rm 
+DEL = rm
 
 
 # Directories
@@ -43,7 +43,7 @@ PDFTOXMLEXE=pdftoxml.exe
 # Main target
 all: pdftoxmlEXE
 
-compile.src: 
+compile.src:
 	$(CXX)  $(CXXFLAGS) $(CXXFLAGSGOO) $(CXXFLAGSFOFI) -I$(DIRXPDF)   -o $(DIRSRC)/ConstantsUtils.o -c $(DIRSRC)/ConstantsUtils.cc
 	$(CXX)  $(CXXFLAGS) $(CXXFLAGSGOO) $(CXXFLAGSFOFI) -I$(DIRXPDF)  -o $(DIRSRC)/ConstantsXML.o -c $(DIRSRC)/ConstantsXML.cc
 	$(CXX) $(CXXFLAGS) $(CXXFLAGSGOO) $(CXXFLAGSFOFI) -I$(DIRXPDF) -Ilibxml2  -o $(DIRSRC)/Parameters.o -c $(DIRSRC)/Parameters.cc
@@ -57,7 +57,7 @@ compile.src:
 
 # Target to create the executable for pdftoxml (locate in exe directory)
 pdftoxmlEXE: compile.src
-	$(CXX) $(CXXFLAGS) $(CXXFLAGSGOO) $(CXXFLAGSFOFI) -I$(DIRXPDF) -I$(DIRSRC) -I$(DIRPNG) -I$(DIRZLIB) -I/usr/include/libxml2 -o $(DIREXE)/$(PDFTOXMLEXE) $(DIRSRC)/pdftoxml.cc $(DIRSRC)/libsrc.a $(DIRXPDF)/libxpdf.a $(DIRGOO)/libGoo.a $(DIRFOFI)/libfofi.a $(DIRPNG)/libpng.a -lm -lxml2 
+	$(CXX) $(CXXFLAGS) $(CXXFLAGSGOO) $(CXXFLAGSFOFI) -I$(DIRXPDF) -I$(DIRSRC) -I$(DIRPNG) -I$(DIRZLIB) -I/usr/include/libxml2 -o $(DIREXE)/$(PDFTOXMLEXE) $(DIRSRC)/pdftoxml.cc $(DIRSRC)/libsrc.a $(DIRXPDF)/libxpdf.a $(DIRGOO)/libGoo.a $(DIRFOFI)/libfofi.a $(DIRPNG)/libpng.a -lm -lxml2
 
 
 
@@ -66,5 +66,3 @@ clean:
 	$(DEL) $(DIRSRC)/libsrc.a
 	$(DEL) $(DIRSRC)/*.o
 	$(DEL) $(DIREXE)/*.exe
-
-

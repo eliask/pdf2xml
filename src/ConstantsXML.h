@@ -2,7 +2,7 @@
 //
 // ConstantsXML.h
 //
-// Contain all constants for tag XML, attributs XML and other informations 
+// Contain all constants for tag XML, attributs XML and other informations
 // which are defined in the output file of pdftoxml.
 //
 // author: Sophie Andrieu
@@ -15,7 +15,7 @@
 #ifndef CONSTANTSXML_H_
 #define CONSTANTSXML_H_
 
-/** 
+/**
  * ConstantsXML namespace : contain all constants XML (tag, attributes XML) which are used into pdftoxml tool <br></br>
  * Xerox Research Centre Europe <br></br>
  * date : 04-2006 <br></br>

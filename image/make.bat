@@ -43,4 +43,3 @@ del %DIRZLIB%\zlib.a
 
 del %DIRPNG%\libpng.a
 %LIBPROG% -rc %DIRPNG%\libpng.a *.o
-

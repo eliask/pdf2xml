@@ -1,11 +1,11 @@
 # ======================
 # Xerox Research Centre Europe
 # ======================
-# 
-# 
+#
+#
 # Originally created by Sophie Andrieu
-# translation into RelaxNG by Jean-Yves Vion-Dury 
-# 
+# translation into RelaxNG by Jean-Yves Vion-Dury
+#
 # 04/2006
 
 # default namespace DS = "http://www.xrce.xerox.com/DS"
@@ -100,12 +100,12 @@ a:cvs-log [
 ]
 
 ## Schema for capturing the structure of xml output from the pdftoxml tool
-## do not change the policy which consists in having a "a-XXX" and "c-XXX" 
+## do not change the policy which consists in having a "a-XXX" and "c-XXX"
 ## definition for each "XXX" tag definition, as it furthers the modular use of
 ## this schema by other component-related schemas
 
 ## Example of XML document :  attributes are not consistant
-## 
+##
 ## <DOCUMENT>
 ##    <METADATA>
 ##        <PDFFILENAME>file.pdf</PDFFILENAME>
@@ -117,7 +117,7 @@ a:cvs-log [
 ##        </PROCESS>
 ##    </METADATA>
 ##    <PAGE width="419" height="595" number="1">
-##        <IMAGE x="25" y="31" width="377" height="534" inline="0" href="file.xml_data/image-1.ppm" /> 
+##        <IMAGE x="25" y="31" width="377" height="534" inline="0" href="file.xml_data/image-1.ppm" />
 ##        <TEXT x="44" y="384" width="123" height="15" id="p1_t1">
 ##            <TOKEN id="p1_w1" rotation="0" angle="0" font-name="Courier" bold="no" italic="no" font-size="15" font-color="#000000" x="44" y="384" width="24" height="14">This</TOKEN>
 ##            <TOKEN id="p1_w2" rotation="0" angle="0" font-name="Courier" bold="no" italic="no" font-size="15" font-color="#000000" x="73" y="384" width="12" height="14">is</TOKEN>
@@ -146,7 +146,7 @@ a-Position =
   attribute y { xsd:decimal }
 a-Basic = a-Size, a-Position
 
-## A document is composed of a Metadata and a sequence of Pages 
+## A document is composed of a Metadata and a sequence of Pages
 Document = element DOCUMENT { Metadata, Page+ }
 
 ## Document = element DOCUMENT { a-Base, Metadata, Page+ }
@@ -154,10 +154,10 @@ Document = element DOCUMENT { Metadata, Page+ }
 ## A Metadata contains a PdfFileName and a Process
 Metadata = element METADATA { PdfFileName, Process+ }
 
-## A PdfFileName contains textual data which is the PDF file name 
+## A PdfFileName contains textual data which is the PDF file name
 PdfFileName = element PDFFILENAME { text }
 
-## A Process contains a Version and a CreationDate 
+## A Process contains a Version and a CreationDate
 Process = element PROCESS { a-Process, c-Process }
 a-Process =
   attribute name { xsd:string },
@@ -181,7 +181,7 @@ sid =
   }
 
 ## A Page contains: images and/or text and/or vectors
-## as a Page can be xincluded, it must accept the xml:base attribute 
+## as a Page can be xincluded, it must accept the xml:base attribute
 a-Page =
   # a-Base,
   a-Size,
@@ -222,7 +222,7 @@ c-Image = empty
 Image = element IMAGE { a-Image, c-Image }
 
 ## Added a-base in order xinclude to be ok (it adds a base attribute after inclusion)
-## as a VectorialImage can be xincluded, it must accept the xml:base attribute 
+## as a VectorialImage can be xincluded, it must accept the xml:base attribute
 a-VectorialImages = a-Base
 c-VectorialImages = Group*, Clip*
 VectorialImages = element VECTORIALIMAGES { a-VectorialImages, c-VectorialImages* }
@@ -293,7 +293,7 @@ a-Token =
   },
   attribute type { xsd:integer }?,
   (a-tokenImage? | a-tokenText?)
-# c-Token= xsd:string text 
+# c-Token= xsd:string text
 Token =
   element TOKEN {
     a-Token,
@@ -305,7 +305,7 @@ Token =
 ##  - 1 : bottom up direction
 ##  - 2 : right to left direction
 ##  - 3 : top down direction
-## 
+##
 ## angle attribute is a degree value 0 to 360 degrees where :
 ##  - 0 degree is the 0 rotation
 ##  - 90 degrees is the 1 rotation
@@ -319,7 +319,7 @@ a-tokenText =
   attribute angle { xsd:decimal }?
 
 ## Theses attributes are added when the token is an image inline
-## the href attribute get the image path                 
+## the href attribute get the image path
 a-tokenImage = attribute href { xsd:anyURI }?
 
 ## Attributes which are added when verbose option is selected
@@ -335,7 +335,7 @@ a-Detail =
   attribute render { xsd:decimal }?,
   attribute rise { xsd:decimal }?
 
-## font-name attribute can be normalized or not (default is normalized otherwise not) 
+## font-name attribute can be normalized or not (default is normalized otherwise not)
 a-Font =
   attribute font-name { xsd:string },
   attribute font-size { xsd:decimal },

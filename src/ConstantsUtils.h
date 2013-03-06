@@ -13,14 +13,14 @@
 #ifndef CONSTANTSUTILS_H_
 #define CONSTANTSUTILS_H_
 
-/** 
+/**
  * ConstantsUtils namespace : contain some constants which are used into pdftoxml tool <br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 05-2006 <br></br>
  * @author Sophie Andrieu
  * @version xpdf 3.01
  */
- 
+
 namespace ConstantsUtils
 {
 	extern const char *EXTENSION_XML;

@@ -30,8 +30,8 @@ void PDFDocXrce::displayPages(OutputDev *out, xmlNodePtr docrootA, int firstPage
 			  GBool useMediaBox, GBool crop, GBool doLinks,
 			  GBool (*abortCheckCbk)(void *data),
 			  void *abortCheckCbkData){
-			  
-	PDFDoc::displayPages(out, firstPage, lastPage, hDPI, vDPI, rotate, useMediaBox, crop, doLinks); 
+			
+	PDFDoc::displayPages(out, firstPage, lastPage, hDPI, vDPI, rotate, useMediaBox, crop, doLinks);
 
 	int pageNum;
 	Page *currentPage;
@@ -59,10 +59,10 @@ void PDFDocXrce::displayPages(OutputDev *out, xmlNodePtr docrootA, int firstPage
   			delete state;
 
   			currentPage->getAnnots(&objAnnot);
-  	  
+  	
 			// Annotation's objects list
     		if (objAnnot.isArray()){
-  	  			an = new AnnotsXrce(objAnnot, docrootA, getCatalog(),ctm, pageNum);  
+  	  			an = new AnnotsXrce(objAnnot, docrootA, getCatalog(),ctm, pageNum);
   	  			delete an;		
   			}
   			objAnnot.free();

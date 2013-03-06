@@ -3,11 +3,11 @@
   ======================
   Xerox Research Centre Europe
   ======================
-  
-  
+
+
   Originally created by Sophie Andrieu
-  translation into RelaxNG by Jean-Yves Vion-Dury 
-  
+  translation into RelaxNG by Jean-Yves Vion-Dury
+
   04/2006
 -->
 <!-- default namespace DS = "http://www.xrce.xerox.com/DS" -->
@@ -95,7 +95,7 @@
     </a:cvs-log>
   <start>
     <a:documentation>Schema for capturing the structure of xml output from the pdftoxml tool
-do not change the policy which consists in having a "a-XXX" and "c-XXX" 
+do not change the policy which consists in having a "a-XXX" and "c-XXX"
 definition for each "XXX" tag definition, as it furthers the modular use of
 this schema by other component-related schemas</a:documentation>
     <a:documentation>Example of XML document :  attributes are not consistant
@@ -111,7 +111,7 @@ this schema by other component-related schemas</a:documentation>
        &lt;/PROCESS&gt;
    &lt;/METADATA&gt;
    &lt;PAGE width="419" height="595" number="1"&gt;
-       &lt;IMAGE x="25" y="31" width="377" height="534" inline="0" href="file.xml_data/image-1.ppm" /&gt; 
+       &lt;IMAGE x="25" y="31" width="377" height="534" inline="0" href="file.xml_data/image-1.ppm" /&gt;
        &lt;TEXT x="44" y="384" width="123" height="15" id="p1_t1"&gt;
            &lt;TOKEN id="p1_w1" rotation="0" angle="0" font-name="Courier" bold="no" italic="no" font-size="15" font-color="#000000" x="44" y="384" width="24" height="14"&gt;This&lt;/TOKEN&gt;
            &lt;TOKEN id="p1_w2" rotation="0" angle="0" font-name="Courier" bold="no" italic="no" font-size="15" font-color="#000000" x="73" y="384" width="12" height="14"&gt;is&lt;/TOKEN&gt;

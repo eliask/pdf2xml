@@ -2,10 +2,10 @@
 DIRPNG= ./png
 DIRZLIB= ./zlib
 CC=gcc
-CFLAGS=-Wall -I/usr/lib64/include 
+CFLAGS=-Wall -I/usr/lib64/include
 CFLAGS=-g -O2 -I ./zlib
 LIBPROG = ar
-DEL = rm 
+DEL = rm
 
 all:
 	$(CC) $(CFLAGS)  -c $(DIRZLIB)/adler32.c
@@ -44,4 +44,3 @@ all:
 	$(DEL) $(DIRPNG)/libpng.a
 	$(LIBPROG) -rc $(DIRPNG)/libpng.a *.o
 	$(DEL) *.o
-

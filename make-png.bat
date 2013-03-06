@@ -26,5 +26,4 @@ copy ..\xpdf\aconf-dj.h %DIRSRC%\aconf.h
 del %DIRSRC%\libsrc.a
 %LIBPROG% -rc %DIRSRC%\libsrc.a *.o
 
-%CXX% %CXXFLAGS% --static  -o %DIREXE%\pdftoxml.exe %DIRSRC%\pdftoxml.cc -I%DIRPNG%  -I%DIRZLIB%  -I%DIRXPDF% -I%DIRLIBXML%\include -I%DIRICONV%\include %DIRLIBXML%\bin\libxml2.dll %DIRSRC%\libsrc.a %DIRXPDF%\libxpdf.a %DIRFOFI%\libfofi.a %DIRGOO%\libGoo.a %DIRPNG%\libpng.a 
-
+%CXX% %CXXFLAGS% --static  -o %DIREXE%\pdftoxml.exe %DIRSRC%\pdftoxml.cc -I%DIRPNG%  -I%DIRZLIB%  -I%DIRXPDF% -I%DIRLIBXML%\include -I%DIRICONV%\include %DIRLIBXML%\bin\libxml2.dll %DIRSRC%\libsrc.a %DIRXPDF%\libxpdf.a %DIRFOFI%\libfofi.a %DIRGOO%\libGoo.a %DIRPNG%\libpng.a

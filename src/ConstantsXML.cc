@@ -2,7 +2,7 @@
 //
 // ConstantsXML.cc
 //
-// Contain all constants for tag XML, attributs XML and other informations 
+// Contain all constants for tag XML, attributs XML and other informations
 // which are defined in the output file of pdftoxml.
 //
 // author: Sophie Andrieu

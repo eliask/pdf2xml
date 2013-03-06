@@ -29,24 +29,24 @@ class Parameters;
 // The parameters object
 extern Parameters *parameters;
 
-/** 
+/**
  * Parameters class : parameters listing used into pdftoxml as options <br></br>
  * Xerox Research Centre Europe <br></br>
  * @date 05-2006
  * @author Sophie Andrieu
  * @version xpdf 3.01
  */
- 
+
 class Parameters {
 public:
 
-	/** Construct a new <code>Parameters</code> */ 
+	/** Construct a new <code>Parameters</code> */
 	Parameters();
 	
 	/** Destructor */
 	~Parameters();
-  
-	/** Return a boolean which inform if the text is displayed 
+
+	/** Return a boolean which inform if the text is displayed
 	 * @return <code>true</code> if the toText option is selected, <code>false</code> otherwise
 	 */
 	GBool getDisplayText() { return displayText;};
@@ -86,7 +86,7 @@ public:
 	 */
 	void setDisplayImage(GBool noImage);
 	
-	/** Modify the boolean which inform if the text is displayed 
+	/** Modify the boolean which inform if the text is displayed
 	 * @param notext <code>true</code> if the toText option is selected, <code>false</code> otherwise
 	 */	
 	void setDisplayText(GBool notext);
@@ -134,7 +134,7 @@ private:
 	GBool fullFontName;
 	/** The value of the noImageInline option */
 	GBool imageInline;
-  
+
 };
 
 #endif /*PARAMETERS_H_*/

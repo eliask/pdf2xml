@@ -157,13 +157,13 @@ void Parameters::saveToXML(const char *fileName,int firstPage,int lastPage){
 	xmlNodeSetContent(param,(const xmlChar*)tmp);
 	xmlAddChild(confNode,param);
 
-//	getDisplayText() 
-//	GBool getDisplayBlocks() 
-//	GBool getDisplayImage() 
-//	GBool getDisplayOutline() 
-//	GBool getCutAllPages() 
-//	GBool getFullFontName() 
-//	GBool getImageInline() 
+//	getDisplayText()
+//	GBool getDisplayBlocks()
+//	GBool getDisplayImage()
+//	GBool getDisplayOutline()
+//	GBool getCutAllPages()
+//	GBool getFullFontName()
+//	GBool getImageInline()
 	
 	xmlSaveFile(fileName,confDoc);
   	xmlFreeDoc(confDoc);
